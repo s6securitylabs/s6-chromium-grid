@@ -2,6 +2,126 @@
 
 All notable changes to S6 Chromium Grid will be documented in this file.
 
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [1.5.0] - 2026-01-09
+
+### Added
+- **Instance Renaming** - Customizable instance names with persistence
+  - Pencil icon (✏️) next to each instance title for quick renaming
+  - Inline editing with Enter/Escape/Blur keyboard shortcuts
+  - Custom names stored in localStorage (`instance-name-{id}`)
+  - Names display across all views: cards, multi-view grid, VNC modals
+  - Smooth hover effects and visual feedback during editing
+- **EXTERNAL_PORT_PREFIX Configuration** - TrueNAS and port conflict support
+  - New `EXTERNAL_PORT_PREFIX` environment variable (default: 0)
+  - Dashboard automatically calculates and displays prefixed ports
+  - Formula: External Port = (PREFIX × 10000) + Internal Port
+  - Example: `EXTERNAL_PORT_PREFIX=1` → ports 19222, 15900, 16080, 18080
+  - Comprehensive documentation in README with examples
+  - Fixes CDP 404 errors when using TrueNAS with custom port ranges
+
+### Changed
+- **Improved Dashboard UX** - Better usability for settings and configuration
+  - AI Prompt textarea increased from 15 to 30 rows (min-height: 400px)
+  - Settings sections now support vertical scrolling for long content
+  - Better overflow handling in collapsible sections
+- **Enhanced Port Documentation** - Comprehensive port prefix guide in README
+  - Clear formula explanation with concrete examples
+  - Docker port mapping examples for prefixed deployments
+  - TrueNAS-specific configuration guidance
+
+### Technical
+- Added CSS styles for `.rename-icon` and `.rename-input`
+- Added `getInstanceName(id)` helper function for name retrieval
+- Added `renameInstance(id)` function with inline edit implementation
+- Updated `renderInstances()` to use custom names with pencil icons
+- Updated `openMultiView()` to display custom names in grid
+- Updated `openVNC()` to show custom names in modal titles
+- Added `EXTERNAL_PORT_PREFIX` to docker-compose.yml environment
+- Updated `.env.example` with port prefix configuration
+
+### Fixed
+- **Port Display Issues** - Dashboard now correctly shows external ports when prefix is configured
+- **Textarea Expandability** - Settings modal sections properly accommodate expanded textareas
+
+---
+
+## [1.4.8] - 2026-01-09
+
+### Added
+- **AI Prompt Customization** - Full template customization with placeholder system
+  - New accordion section "🤖 AI Prompt Template" in Settings modal
+  - Customizable prompt template with WYSIWYG textarea editor
+  - Dynamic placeholders: `{ENDPOINT}`, `{HOST}`, `{PORT}`, `{INSTANCE_ID}`
+  - Automatic placeholder replacement when copying prompts
+  - Persistent storage via localStorage
+  - Reset to default functionality with confirmation dialog
+  - Inline documentation showing available placeholders and usage examples
+  - Default template includes complete Playwright connection example
+
+### Fixed
+- **Critical:** Fixed `navigator.clipboard.writeText()` crash in non-HTTPS deployments
+  - Added robust capability check before accessing Clipboard API
+  - Implemented fallback using `document.execCommand('copy')` for HTTP contexts
+  - Fixed both `copyAIPrompt()` and `copyEndpoint()` functions
+  - Improved cross-browser compatibility for clipboard operations
+
+### Changed
+- Simplified AI prompt system from 3 fixed templates to 1 editable template
+  - Previous v1.4.1 approach (3 templates) was too rigid
+  - New approach: single template, fully customizable, power-user friendly
+- Improved Settings modal UX with accordion behavior
+  - All sections start collapsed for cleaner initial view
+  - Opening one section auto-closes others (true accordion pattern)
+  - Better visual hierarchy and reduced clutter
+- Updated dashboard version badge to v1.4.8
+
+### Technical
+- Added `DEFAULT_AI_PROMPT` JavaScript constant for template reset
+- Enhanced `loadSettings()` to load AI template from localStorage
+- Enhanced `saveSettings()` to persist AI template to localStorage
+- Added `resetAIPrompt()` function with user confirmation
+- Updated `copyAIPrompt()` to use custom templates with placeholder replacement
+- Comprehensive Playwright E2E test suite (7 tests, 100% passing)
+
+---
+
+## [1.4.1] - 2026-01-08
+
+### Fixed
+- **Keyboard Hotkeys**: Removed global M/L hotkeys that interfered with typing in input fields and textareas
+- **Only Escape key remains** as global hotkey with proper `isTyping` check to prevent interference
+
+### Changed
+- **AI Testing Feature Redesigned**: Replaced complex AI test code generator with simple AI Prompt copier
+  - Users can now copy ready-to-paste prompts for Claude/ChatGPT/any AI assistant
+  - 3 customizable templates: E2E Testing, Visual Testing, Performance Testing
+  - Templates use placeholders: `{IP}`, `{PORT}`, `{INSTANCE_ID}` that auto-replace
+  - Templates customizable in Settings modal
+- **Settings Modal Enhanced**:
+  - Added AI Prompt template customization section
+  - Added auto-refresh interval configuration (5-60 seconds)
+  - Reset to defaults button for AI templates
+- **Button Labels**: Changed "🤖 AI Test" to "📋 AI Prompt" to better reflect functionality
+- **Auto-Refresh Interval**: Now configurable instead of hardcoded 10 seconds
+- **Full S6 Security Labs Branding Applied**:
+  - Official S6 Security Labs logo in header with gradient S6 mark
+  - Barlow Condensed font for S6 branding
+  - Montserrat font family for all UI elements (professional, clean)
+  - S6 brand colors: Blue (#3498db), Purple (#9b59b6) for primary actions
+  - Professional "defense contractor" aesthetic per brand guidelines
+
+### Added
+- Default AI prompt templates for E2E, Visual, and Performance testing
+- `startAutoRefresh()` function with configurable interval from localStorage
+- Template placeholder replacement system for CDP endpoints
+- Google Fonts integration: Barlow Condensed (600) and Montserrat (300, 400, 500, 600)
+- S6 Security Labs logo SVG with proper gradients (#ff4d4d → #222, #9b59b6 → #3498db)
+
+---
+
 ## [1.3.0] - 2026-01-08
 
 ### Added
