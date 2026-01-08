@@ -415,14 +415,24 @@ app.post('/api/instance/:id/recording/start', async (req, res) => {
         '-vf', `scale=${state.recordingSettings.scale}`,
         '-c:v', 'libx264',
         '-crf', state.recordingSettings.quality.toString(),
-        '-preset', 'fast',
-        '-f', 'mp4',
-        '-movflags', '+faststart',
+        '-preset', 'ultrafast',
+        '-tune', 'zerolatency',
+        '-pix_fmt', 'yuv420p',
+        '-movflags', 'frag_keyframe+empty_moov+faststart',
+        '-y',
         filepath
     ];
     
     const proc = spawn('ffmpeg', ffmpegArgs, {
-        stdio: ['ignore', 'pipe', 'pipe']
+        stdio: ['pipe', 'pipe', 'pipe']
+    });
+    
+    let ffmpegLog = '';
+    proc.stderr.on('data', (data) => {
+        ffmpegLog += data.toString();
+        if (ffmpegLog.length > 10000) {
+            ffmpegLog = ffmpegLog.slice(-5000);
+        }
     });
     
     proc.on('error', (err) => {
@@ -431,7 +441,11 @@ app.post('/api/instance/:id/recording/start', async (req, res) => {
         recordingProcesses.delete(id);
     });
     
-    proc.on('exit', () => {
+    proc.on('exit', (code) => {
+        console.log(`[Recording ${id}] FFmpeg exited with code ${code}`);
+        if (code !== 0 && code !== 255) {
+            console.error(`[Recording ${id}] FFmpeg error output:`, ffmpegLog.slice(-1000));
+        }
         state.recording = false;
         recordingProcesses.delete(id);
     });
@@ -443,7 +457,9 @@ app.post('/api/instance/:id/recording/start', async (req, res) => {
                 if (stats.size >= state.recordingSettings.maxSize) {
                     console.log(`[Recording ${id}] Max size reached, stopping`);
                     clearInterval(sizeCheckInterval);
-                    proc.kill('SIGINT');
+                    // Gracefully stop FFmpeg by sending 'q' to stdin
+                    proc.stdin.write('q');
+                    proc.stdin.end();
                 }
             }
         } catch (err) {
@@ -453,7 +469,7 @@ app.post('/api/instance/:id/recording/start', async (req, res) => {
     
     proc.on('exit', () => clearInterval(sizeCheckInterval));
     
-    recordingProcesses.set(id, { proc, sizeCheckInterval });
+    recordingProcesses.set(id, { proc, sizeCheckInterval, filepath });
     state.recording = true;
     state.recordingFile = filename;
     state.recordingStartTime = Date.now();
@@ -476,7 +492,27 @@ app.post('/api/instance/:id/recording/stop', async (req, res) => {
     const recData = recordingProcesses.get(id);
     if (recData) {
         clearInterval(recData.sizeCheckInterval);
-        recData.proc.kill('SIGINT');
+        
+        try {
+            recData.proc.stdin.write('q');
+            recData.proc.stdin.end();
+            
+            await new Promise((resolve) => {
+                const timeout = setTimeout(() => {
+                    recData.proc.kill('SIGTERM');
+                    resolve();
+                }, 5000);
+                
+                recData.proc.on('exit', () => {
+                    clearTimeout(timeout);
+                    resolve();
+                });
+            });
+        } catch (err) {
+            console.error(`[Recording ${id}] Stop error:`, err.message);
+            recData.proc.kill('SIGTERM');
+        }
+        
         recordingProcesses.delete(id);
     }
     
@@ -485,8 +521,6 @@ app.post('/api/instance/:id/recording/stop', async (req, res) => {
     state.recordingFile = null;
     state.recordingStartTime = null;
     instanceState.set(id, state);
-    
-    await new Promise(r => setTimeout(r, 1000));
     
     res.json({ success: true, recording: false, filename });
 });
