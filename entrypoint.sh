@@ -72,7 +72,7 @@ for i in $(seq 1 "$INSTANCE_COUNT"); do
     fi
     
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] Starting fluxbox" >> "$INSTANCE_LOG"
-    su -s /bin/bash chrome -c "fluxbox -display $DISPLAY >> '$INSTANCE_LOG' 2>&1 &" 2>/dev/null || true
+    su -s /bin/bash chrome -c "fluxbox -display $DISPLAY 2>&1 | grep -v -i 'background\|wallpaper\|fbsetbg' >> '$INSTANCE_LOG' &" 2>/dev/null || true
     
     if [ "$ENABLE_VNC" = "true" ]; then
         echo "[$(date '+%Y-%m-%d %H:%M:%S')] Starting x11vnc on port $VNC_PORT" >> "$INSTANCE_LOG"

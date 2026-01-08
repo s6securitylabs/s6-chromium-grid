@@ -142,9 +142,9 @@ environment:
 
 We use semantic versioning. Available tags:
 
-- `:latest` - Latest stable release
-- `:1.0.0` - Specific version (recommended)
-- `:1.0` - Latest patch for v1.0.x
+- `:latest` - Latest stable release (currently 1.3.0)
+- `:1.3.0` - Specific version (recommended)
+- `:1.3` - Latest patch for v1.3.x
 - `:1` - Latest minor for v1.x.x
 - `:main` - Latest from main branch (unstable)
 

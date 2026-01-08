@@ -41,6 +41,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     unzip \
     socat \
+    imagemagick \
+    ffmpeg \
     && rm -rf /var/lib/apt/lists/* \
     && sed -i '/en_US.UTF-8/s/^# //g' /etc/locale.gen \
     && locale-gen
@@ -57,9 +59,12 @@ ENV LC_ALL=en_US.UTF-8
 RUN groupadd -r render || true \
     && groupadd -r chrome \
     && useradd -r -g chrome -G audio,video,render chrome \
-    && mkdir -p /home/chrome/Downloads /data /tmp/.X11-unix /dashboard \
+    && mkdir -p /home/chrome/Downloads /home/chrome/.fluxbox /data /tmp/.X11-unix /dashboard /recordings /tmp/screenshots \
+    && echo "session.screen0.rootCommand:" > /home/chrome/.fluxbox/init \
+    && echo "background: none" > /home/chrome/.fluxbox/overlay \
     && chown -R chrome:chrome /home/chrome /data \
-    && chmod 1777 /tmp/.X11-unix
+    && chmod 1777 /tmp/.X11-unix \
+    && chmod 777 /recordings /tmp/screenshots
 
 COPY dashboard/package.json /dashboard/
 WORKDIR /dashboard

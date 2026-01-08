@@ -366,16 +366,103 @@
         .toast.success { border-color: #22c55e; }
         .toast.error { border-color: #ef4444; }
         @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        
+        .system-metrics {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+            font-size: 0.85rem;
+            color: #94a3b8;
+        }
+        .system-metrics span {
+            display: flex;
+            align-items: center;
+            gap: 0.25rem;
+        }
+        .metric-warning { color: #f59e0b; }
+        .metric-danger { color: #ef4444; }
+        
+        .recording-status {
+            color: #ef4444;
+            font-size: 0.75rem;
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        
+        .settings-modal .modal-body {
+            padding: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+        .settings-modal label {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            color: #e2e8f0;
+        }
+        .settings-modal input[type="range"] {
+            width: 100%;
+        }
+        .settings-modal input[type="number"],
+        .settings-modal select {
+            background: #0f172a;
+            color: #e2e8f0;
+            border: 1px solid #334155;
+            padding: 0.5rem;
+            border-radius: 0.375rem;
+        }
+        
+        .recordings-grid {
+            display: grid;
+            gap: 0.5rem;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .recording-item {
+            background: #0f172a;
+            padding: 0.75rem;
+            border-radius: 0.375rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .recording-info {
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+        }
+        .recording-name {
+            font-weight: 500;
+            color: #e2e8f0;
+        }
+        .recording-meta {
+            font-size: 0.75rem;
+            color: #64748b;
+        }
+        .recording-actions {
+            display: flex;
+            gap: 0.5rem;
+        }
     </style>
 </head>
 <body>
     <header>
         <div class="logo">
             <h1>S6 Chromium Grid</h1>
-            <span class="version-badge">v1.2.2</span>
+            <span class="version-badge">v1.3.0</span>
         </div>
         <div class="header-actions">
+            <div class="system-metrics">
+                <span id="disk-metric">💾 ...</span>
+                <span id="cpu-metric">⚡ ...</span>
+                <span id="memory-metric">🧠 ...</span>
+            </div>
             <span id="overall-status" class="status-badge">Loading...</span>
+            <button class="logs-btn" onclick="openRecordingsManager()">📹 Recordings</button>
             <button class="logs-btn" onclick="openLogs()">Logs</button>
             <button class="view-all-btn" onclick="openMultiView()">View All</button>
             <button class="refresh-btn" onclick="loadStatus()">Refresh</button>
@@ -437,14 +524,75 @@
         <div id="multi-view-grid" class="multi-view-grid"></div>
     </div>
 
+    <div id="recording-settings-modal" class="modal settings-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Recording Settings</h2>
+                <button class="close-btn" onclick="closeRecordingSettings()">Close</button>
+            </div>
+            <div class="modal-body">
+                <label>
+                    FPS: <span id="fps-value">15</span>
+                    <input type="range" id="fps-slider" min="5" max="60" value="15" oninput="document.getElementById('fps-value').textContent = this.value">
+                </label>
+                <label>
+                    Quality (CRF): <span id="quality-value">23</span> <small>(lower = better quality, larger file)</small>
+                    <input type="range" id="quality-slider" min="18" max="28" value="23" oninput="document.getElementById('quality-value').textContent = this.value">
+                </label>
+                <label>
+                    Resolution:
+                    <select id="resolution-select">
+                        <option value="1920:1080">1920x1080 (Full HD)</option>
+                        <option value="1280:720" selected>1280x720 (HD)</option>
+                        <option value="854:480">854x480 (SD)</option>
+                    </select>
+                </label>
+                <label>
+                    Max File Size (MB):
+                    <input type="number" id="max-size-input" value="1024" min="100" max="10000" step="100">
+                </label>
+                <button class="btn btn-primary" onclick="saveRecordingSettings()">Save Settings</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="recordings-modal" class="modal">
+        <div class="logs-content">
+            <div class="logs-header">
+                <div class="logs-header-left">
+                    <h2>Recordings</h2>
+                    <button class="btn btn-secondary" onclick="openRecordingSettings()">⚙️ Settings</button>
+                </div>
+                <button class="close-btn" onclick="closeRecordingsManager()">Close</button>
+            </div>
+            <div class="logs-body">
+                <div id="recordings-grid" class="recordings-grid"></div>
+            </div>
+            <div class="logs-footer">
+                <span id="recordings-info">Loading...</span>
+                <button class="btn btn-secondary" onclick="loadRecordings()">Refresh</button>
+            </div>
+        </div>
+    </div>
+
     <script>
         let instances = [];
         let refreshInterval;
+        let metricsInterval;
+        let recordingDurationIntervals = new Map();
+        let recordingSettings = {
+            fps: 15,
+            quality: 23,
+            scale: '1280:720',
+            maxSize: 1073741824
+        };
         
         function getVncUrl(wsPort) {
             const host = window.location.hostname;
             return `/novnc/vnc.html?host=${host}&port=${wsPort}&autoconnect=true&resize=scale&reconnect=true&reconnect_delay=1000`;
         }
+        
+
         
         async function loadStatus() {
             try {
@@ -457,6 +605,39 @@
                 console.error('Failed to load status:', err);
                 showToast('Failed to load status', 'error');
             }
+        }
+        
+        async function loadMetrics() {
+            try {
+                const res = await fetch('/api/metrics');
+                const data = await res.json();
+                
+                const diskPercent = (data.disk.used / data.disk.total) * 100;
+                const memPercent = (data.memory.used / data.memory.total) * 100;
+                const cpuPercent = parseFloat(data.cpu.usage);
+                
+                const diskEl = document.getElementById('disk-metric');
+                diskEl.innerHTML = `💾 ${formatBytes(data.disk.used)} / ${formatBytes(data.disk.total)}`;
+                diskEl.className = diskPercent > 90 ? 'metric-danger' : diskPercent > 80 ? 'metric-warning' : '';
+                
+                const cpuEl = document.getElementById('cpu-metric');
+                cpuEl.innerHTML = `⚡ ${cpuPercent}%`;
+                cpuEl.className = cpuPercent > 90 ? 'metric-danger' : cpuPercent > 80 ? 'metric-warning' : '';
+                
+                const memEl = document.getElementById('memory-metric');
+                memEl.innerHTML = `🧠 ${formatBytes(data.memory.used)} / ${formatBytes(data.memory.total)}`;
+                memEl.className = memPercent > 90 ? 'metric-danger' : memPercent > 80 ? 'metric-warning' : '';
+            } catch (err) {
+                console.error('Failed to load metrics:', err);
+            }
+        }
+        
+        function formatBytes(bytes) {
+            if (bytes === 0) return '0 B';
+            const k = 1024;
+            const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return Math.round(bytes / Math.pow(k, i) * 10) / 10 + ' ' + sizes[i];
         }
         
         function updateOverallStatus(data) {
@@ -475,7 +656,15 @@
         
         function renderInstances() {
             const container = document.getElementById('instances');
-            container.innerHTML = instances.map(inst => `
+            container.innerHTML = instances.map(inst => {
+                const previewContent = inst.status === 'running'
+                    ? `<div class="vnc-placeholder clickable" onclick="openVNC(${inst.id}, ${inst.wsPort})" style="cursor: pointer; background: linear-gradient(135deg, #1e293b 0%, #334155 100%); display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 10px;">
+                        <div style="font-size: 48px;">🖥️</div>
+                        <div style="font-size: 16px; color: #94a3b8;">Click to View Browser</div>
+                       </div>`
+                    : `<div class="vnc-placeholder">Instance Offline</div>`;
+                
+                return `
                 <div class="card" id="card-${inst.id}">
                     <div class="card-header">
                         <div class="card-title">
@@ -484,10 +673,9 @@
                         </div>
                         <span class="status-badge ${inst.status}">${inst.status}</span>
                     </div>
-                    ${inst.status === 'running' 
-                        ? `<iframe class="vnc-preview" src="${getVncUrl(inst.wsPort)}" loading="lazy"></iframe>`
-                        : `<div class="vnc-placeholder">Instance Offline</div>`
-                    }
+                    <div id="preview-${inst.id}">
+                        ${previewContent}
+                    </div>
                     <div class="card-info">
                         <div class="info-item">
                             <span class="info-label">CDP:</span>
@@ -500,16 +688,30 @@
                     </div>
                     <div class="card-actions">
                         ${inst.status === 'running' ? `
-                            <button class="btn btn-primary" onclick="openVNC(${inst.id}, ${inst.wsPort})">Expand</button>
-                            <button class="btn btn-warning" onclick="restartInstance(${inst.id})">Restart</button>
-                            <button class="btn btn-danger" onclick="stopInstance(${inst.id})">Stop</button>
+                            <button class="btn ${inst.recording ? 'btn-danger' : 'btn-secondary'}" 
+                                    onclick="${inst.recording ? `stopRecording(${inst.id})` : `startRecording(${inst.id})`}">
+                                ${inst.recording ? '⏹️ Stop' : '🔴 Record'}
+                            </button>
+                            
+                            ${inst.recording ? `<span class="recording-status" id="recording-duration-${inst.id}">🔴 ${getRecordingDuration(inst.recordingStartTime)}</span>` : ''}
+                            
+                            <button class="btn ${inst.gpuEnabled ? 'btn-success' : 'btn-secondary'}" 
+                                    onclick="toggleGPU(${inst.id})" 
+                                    title="Toggle GPU (requires restart)">
+                                🎮 ${inst.gpuEnabled ? 'ON' : 'OFF'}
+                            </button>
+                            
+                            <button class="btn btn-primary" onclick="openVNC(${inst.id}, ${inst.wsPort})">📹 View</button>
+                            <button class="btn btn-warning" onclick="restartInstance(${inst.id})" ${inst.recording ? 'disabled' : ''}>Restart</button>
+                            <button class="btn btn-danger" onclick="stopInstance(${inst.id})" ${inst.recording ? 'disabled' : ''}>Stop</button>
                         ` : `
                             <button class="btn btn-success" onclick="restartInstance(${inst.id})">Start</button>
                         `}
                         <button class="btn btn-secondary" onclick="copyEndpoint(${inst.cdpPort})">Copy CDP</button>
                     </div>
                 </div>
-            `).join('');
+            `;
+            }).join('');
         }
         
         async function restartInstance(id) {
@@ -572,11 +774,198 @@
             });
         }
         
+        function loadRecordingSettings() {
+            const saved = localStorage.getItem('recording-settings');
+            if (saved) {
+                try {
+                    recordingSettings = JSON.parse(saved);
+                } catch (e) {}
+            }
+            document.getElementById('fps-slider').value = recordingSettings.fps;
+            document.getElementById('fps-value').textContent = recordingSettings.fps;
+            document.getElementById('quality-slider').value = recordingSettings.quality;
+            document.getElementById('quality-value').textContent = recordingSettings.quality;
+            document.getElementById('resolution-select').value = recordingSettings.scale;
+            document.getElementById('max-size-input').value = recordingSettings.maxSize / (1024 * 1024);
+        }
+        
+        function saveRecordingSettings() {
+            recordingSettings.fps = parseInt(document.getElementById('fps-slider').value);
+            recordingSettings.quality = parseInt(document.getElementById('quality-slider').value);
+            recordingSettings.scale = document.getElementById('resolution-select').value;
+            recordingSettings.maxSize = parseInt(document.getElementById('max-size-input').value) * 1024 * 1024;
+            localStorage.setItem('recording-settings', JSON.stringify(recordingSettings));
+            showToast('Recording settings saved', 'success');
+            closeRecordingSettings();
+        }
+        
+        function openRecordingSettings() {
+            loadRecordingSettings();
+            document.getElementById('recording-settings-modal').classList.add('active');
+        }
+        
+        function closeRecordingSettings() {
+            document.getElementById('recording-settings-modal').classList.remove('active');
+        }
+        
+        async function startRecording(id) {
+            try {
+                const res = await fetch(`/api/instance/${id}/recording/start`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(recordingSettings)
+                });
+                const data = await res.json();
+                if (data.success) {
+                    showToast(`Recording started: ${data.filename}`, 'success');
+                    await loadStatus();
+                    startRecordingDurationUpdate(id);
+                } else {
+                    showToast(data.error || 'Failed to start recording', 'error');
+                }
+            } catch (err) {
+                showToast('Failed to start recording', 'error');
+            }
+        }
+        
+        async function stopRecording(id) {
+            try {
+                const res = await fetch(`/api/instance/${id}/recording/stop`, { method: 'POST' });
+                const data = await res.json();
+                if (data.success) {
+                    showToast(`Recording stopped: ${data.filename}`, 'success');
+                    await loadStatus();
+                    stopRecordingDurationUpdate(id);
+                } else {
+                    showToast(data.error || 'Failed to stop recording', 'error');
+                }
+            } catch (err) {
+                showToast('Failed to stop recording', 'error');
+            }
+        }
+        
+        function getRecordingDuration(startTime) {
+            if (!startTime) return '00:00';
+            const seconds = Math.floor((Date.now() - startTime) / 1000);
+            const mins = Math.floor(seconds / 60);
+            const secs = seconds % 60;
+            return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+        }
+        
+        function startRecordingDurationUpdate(id) {
+            stopRecordingDurationUpdate(id);
+            const interval = setInterval(() => {
+                const inst = instances.find(i => i.id === id);
+                if (inst && inst.recording) {
+                    const durationEl = document.getElementById(`recording-duration-${id}`);
+                    if (durationEl) {
+                        durationEl.textContent = getRecordingDuration(inst.recordingStartTime);
+                    }
+                } else {
+                    stopRecordingDurationUpdate(id);
+                }
+            }, 1000);
+            recordingDurationIntervals.set(id, interval);
+        }
+        
+        function stopRecordingDurationUpdate(id) {
+            const interval = recordingDurationIntervals.get(id);
+            if (interval) {
+                clearInterval(interval);
+                recordingDurationIntervals.delete(id);
+            }
+        }
+        
+        async function toggleGPU(id) {
+            const inst = instances.find(i => i.id === id);
+            const newState = !inst.gpuEnabled;
+            
+            try {
+                const res = await fetch(`/api/instance/${id}/gpu`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ enabled: newState })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    showToast(`GPU ${newState ? 'enabled' : 'disabled'}. Restart instance to apply.`, 'success');
+                    await loadStatus();
+                } else {
+                    showToast(data.error || 'Failed to toggle GPU', 'error');
+                }
+            } catch (err) {
+                showToast('Failed to toggle GPU', 'error');
+            }
+        }
+        
+        async function openRecordingsManager() {
+            document.getElementById('recordings-modal').classList.add('active');
+            await loadRecordings();
+        }
+        
+        function closeRecordingsManager() {
+            document.getElementById('recordings-modal').classList.remove('active');
+        }
+        
+        async function loadRecordings() {
+            try {
+                const res = await fetch('/api/recordings');
+                const data = await res.json();
+                const grid = document.getElementById('recordings-grid');
+                const info = document.getElementById('recordings-info');
+                
+                if (!data.recordings || data.recordings.length === 0) {
+                    grid.innerHTML = '<div style="padding: 2rem; text-align: center; color: #64748b;">No recordings yet</div>';
+                    info.textContent = '0 recordings';
+                    return;
+                }
+                
+                grid.innerHTML = data.recordings.map(rec => `
+                    <div class="recording-item">
+                        <div class="recording-info">
+                            <div class="recording-name">${rec.filename}</div>
+                            <div class="recording-meta">${formatBytes(rec.size)} • ${new Date(rec.created).toLocaleString()}</div>
+                        </div>
+                        <div class="recording-actions">
+                            <a href="/api/recordings/${rec.filename}" download class="btn btn-primary btn-sm">⬇️ Download</a>
+                            <button class="btn btn-danger btn-sm" onclick="deleteRecording('${rec.filename}')">🗑️ Delete</button>
+                        </div>
+                    </div>
+                `).join('');
+                
+                info.textContent = `${data.recordings.length} recording${data.recordings.length !== 1 ? 's' : ''} • ${formatBytes(data.recordings.reduce((sum, r) => sum + r.size, 0))} total`;
+            } catch (err) {
+                showToast('Failed to load recordings', 'error');
+            }
+        }
+        
+        async function deleteRecording(filename) {
+            if (!confirm(`Delete ${filename}?`)) return;
+            
+            try {
+                const res = await fetch(`/api/recordings/${filename}`, { method: 'DELETE' });
+                const data = await res.json();
+                if (data.success) {
+                    showToast('Recording deleted', 'success');
+                    await loadRecordings();
+                } else {
+                    showToast(data.error || 'Failed to delete', 'error');
+                }
+            } catch (err) {
+                showToast('Failed to delete recording', 'error');
+            }
+        }
+        
         function openMultiView() {
             const multiView = document.getElementById('multi-view');
             const grid = document.getElementById('multi-view-grid');
             
-            grid.innerHTML = instances.map(inst => `
+            grid.innerHTML = instances.map(inst => {
+                const frameContent = inst.status === 'running'
+                    ? `<iframe class="vnc-cell-frame" src="${getVncUrl(inst.wsPort)}"></iframe>`
+                    : `<div class="vnc-cell-offline">Instance Offline</div>`;
+                
+                return `
                 <div class="vnc-cell">
                     <div class="vnc-cell-header">
                         <div class="vnc-cell-title">
@@ -588,12 +977,12 @@
                             <button class="vnc-cell-btn" onclick="focusInstance(${inst.id}, ${inst.wsPort})" ${inst.status !== 'running' ? 'disabled' : ''}>Focus</button>
                         </div>
                     </div>
-                    ${inst.status === 'running' 
-                        ? `<iframe class="vnc-cell-frame" src="${getVncUrl(inst.wsPort)}"></iframe>`
-                        : `<div class="vnc-cell-offline">Instance Offline</div>`
-                    }
+                    <div id="multi-frame-${inst.id}">
+                        ${frameContent}
+                    </div>
                 </div>
-            `).join('');
+            `;
+            }).join('');
             
             multiView.classList.add('active');
         }
@@ -651,6 +1040,8 @@
         });
         
         let logsAutoRefreshInterval = null;
+        
+
         
         async function openLogs() {
             const modal = document.getElementById('logs-modal');
@@ -757,6 +1148,33 @@
         
         loadStatus();
         refreshInterval = setInterval(loadStatus, 10000);
+        
+        // Start metrics polling
+        loadMetrics();
+        metricsInterval = setInterval(loadMetrics, 5000);
+        
+        // Load recording settings from localStorage
+        const savedSettings = localStorage.getItem('recordingSettings');
+        if (savedSettings) {
+            try {
+                const settings = JSON.parse(savedSettings);
+                document.getElementById('rec-fps').value = settings.fps || 15;
+                document.getElementById('rec-quality').value = settings.quality || 23;
+                document.getElementById('rec-scale').value = settings.scale || '1280:720';
+                document.getElementById('rec-max-size').value = settings.maxSize || 1073741824;
+            } catch (err) {
+                console.error('Failed to load recording settings:', err);
+            }
+        }
+        
+        // Start recording duration updates for any already-recording instances
+        setTimeout(() => {
+            instances.forEach(inst => {
+                if (inst.recording) {
+                    startRecordingDurationUpdate(inst.id);
+                }
+            });
+        }, 1000);
     </script>
 </body>
 </html>
