@@ -13,9 +13,15 @@ const BASE_VNC_PORT = parseInt(process.env.BASE_VNC_PORT || '5900');
 const BASE_WS_PORT = 6080;
 const DASHBOARD_USER = process.env.DASHBOARD_USER || 'admin';
 const DASHBOARD_PASS = process.env.DASHBOARD_PASS || 'admin';
+const EXTERNAL_PORT_PREFIX = parseInt(process.env.EXTERNAL_PORT_PREFIX || '0');
 const NOVNC_PATH = '/opt/novnc';
 
 const websockifyProcesses = new Map();
+
+function toExternalPort(internalPort) {
+    if (EXTERNAL_PORT_PREFIX === 0) return internalPort;
+    return EXTERNAL_PORT_PREFIX * 10000 + internalPort;
+}
 
 app.use(basicAuth({
     users: { [DASHBOARD_USER]: DASHBOARD_PASS },
@@ -86,9 +92,9 @@ async function getInstanceStatus(index) {
     return {
         id,
         status,
-        cdpPort,
-        vncPort,
-        wsPort,
+        cdpPort: toExternalPort(cdpPort),
+        vncPort: toExternalPort(vncPort),
+        wsPort: toExternalPort(wsPort),
         browser: cdpInfo?.Browser || null,
         vncConnected: vncAlive,
         webSocketDebuggerUrl: cdpInfo?.webSocketDebuggerUrl || null
@@ -235,9 +241,12 @@ app.listen(PORT, '0.0.0.0', () => {
     console.log(`  URL:       http://0.0.0.0:${PORT}`);
     console.log(`  Login:     ${DASHBOARD_USER} / ${'*'.repeat(DASHBOARD_PASS.length)}`);
     console.log(`  Instances: ${INSTANCE_COUNT}`);
-    console.log(`  CDP Ports: ${BASE_CDP_PORT}-${BASE_CDP_PORT + INSTANCE_COUNT - 1}`);
-    console.log(`  VNC Ports: ${BASE_VNC_PORT}-${BASE_VNC_PORT + INSTANCE_COUNT - 1}`);
-    console.log(`  WS Ports:  ${BASE_WS_PORT}-${BASE_WS_PORT + INSTANCE_COUNT - 1}`);
+    if (EXTERNAL_PORT_PREFIX > 0) {
+        console.log(`  Port Prefix: ${EXTERNAL_PORT_PREFIX} (external = ${EXTERNAL_PORT_PREFIX}xxxx)`);
+    }
+    console.log(`  CDP Ports: ${toExternalPort(BASE_CDP_PORT)}-${toExternalPort(BASE_CDP_PORT + INSTANCE_COUNT - 1)}`);
+    console.log(`  VNC Ports: ${toExternalPort(BASE_VNC_PORT)}-${toExternalPort(BASE_VNC_PORT + INSTANCE_COUNT - 1)}`);
+    console.log(`  WS Ports:  ${toExternalPort(BASE_WS_PORT)}-${toExternalPort(BASE_WS_PORT + INSTANCE_COUNT - 1)}`);
     console.log('='.repeat(50));
     console.log('');
     
