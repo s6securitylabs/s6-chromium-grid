@@ -1,0 +1,50 @@
+services:
+  s6-chromium-grid:
+    image: ghcr.io/s6securitylabs/s6-chromium-grid:latest
+    build: .
+    container_name: s6-chromium-grid
+    hostname: s6-chromium-grid
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+      - SYS_ADMIN
+    shm_size: '4gb'
+    environment:
+      - INSTANCE_COUNT=${INSTANCE_COUNT:-5}
+      - ENABLE_VNC=${ENABLE_VNC:-true}
+      - SCREEN_WIDTH=${SCREEN_WIDTH:-1920}
+      - SCREEN_HEIGHT=${SCREEN_HEIGHT:-1080}
+      - USE_GPU=${USE_GPU:-false}
+      - TZ=${TZ:-Australia/Adelaide}
+      - LANG=${LANG:-en_US.UTF-8}
+      - DASHBOARD_PORT=${DASHBOARD_PORT:-8080}
+      - DASHBOARD_USER=${DASHBOARD_USER:-admin}
+      - DASHBOARD_PASS=${DASHBOARD_PASS:-changeme}
+    ports:
+      - "8080:8080"
+      - "9222:9222"
+      - "9223:9223"
+      - "9224:9224"
+      - "9225:9225"
+      - "9226:9226"
+      - "5900:5900"
+      - "5901:5901"
+      - "5902:5902"
+      - "5903:5903"
+      - "5904:5904"
+      - "6080:6080"
+      - "6081:6081"
+      - "6082:6082"
+      - "6083:6083"
+      - "6084:6084"
+    volumes:
+      - chromium-data:/data
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 6G
+          cpus: '4'
+
+volumes:
+  chromium-data:

@@ -1,0 +1,527 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>S6 Chromium Grid</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #0f172a;
+            color: #e2e8f0;
+            min-height: 100vh;
+        }
+        header {
+            background: #1e293b;
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #334155;
+        }
+        .logo { display: flex; align-items: center; gap: 0.75rem; }
+        h1 { font-size: 1.5rem; font-weight: 600; }
+        .status-badge {
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.875rem;
+            font-weight: 500;
+        }
+        .status-badge.running { background: #065f46; color: #6ee7b7; }
+        .status-badge.partial { background: #92400e; color: #fcd34d; }
+        .status-badge.offline { background: #991b1b; color: #fca5a5; }
+        main { padding: 1.5rem; }
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+            gap: 1.25rem;
+        }
+        .card {
+            background: #1e293b;
+            border-radius: 0.75rem;
+            border: 1px solid #334155;
+            overflow: hidden;
+        }
+        .card-header {
+            padding: 0.75rem 1rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #334155;
+        }
+        .card-title {
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .instance-status {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+        }
+        .instance-status.running { background: #22c55e; box-shadow: 0 0 8px #22c55e; }
+        .instance-status.offline { background: #ef4444; }
+        .instance-status.error { background: #f59e0b; }
+        
+        .vnc-preview {
+            width: 100%;
+            height: 200px;
+            background: #0f172a;
+            border: none;
+            display: block;
+        }
+        .vnc-placeholder {
+            width: 100%;
+            height: 200px;
+            background: #0f172a;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #475569;
+            font-size: 0.875rem;
+        }
+        
+        .card-info {
+            padding: 0.75rem 1rem;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.5rem;
+            font-size: 0.8rem;
+            border-bottom: 1px solid #334155;
+        }
+        .info-item { display: flex; gap: 0.5rem; }
+        .info-label { color: #64748b; }
+        .info-value { color: #e2e8f0; font-family: monospace; }
+        
+        .card-actions {
+            padding: 0.75rem 1rem;
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+        .btn {
+            padding: 0.4rem 0.75rem;
+            border-radius: 0.375rem;
+            border: none;
+            cursor: pointer;
+            font-size: 0.8rem;
+            font-weight: 500;
+            transition: all 0.15s;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+        }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .btn-primary { background: #3b82f6; color: white; }
+        .btn-primary:hover:not(:disabled) { background: #2563eb; }
+        .btn-success { background: #22c55e; color: white; }
+        .btn-success:hover:not(:disabled) { background: #16a34a; }
+        .btn-warning { background: #f59e0b; color: white; }
+        .btn-warning:hover:not(:disabled) { background: #d97706; }
+        .btn-danger { background: #ef4444; color: white; }
+        .btn-danger:hover:not(:disabled) { background: #dc2626; }
+        .btn-secondary { background: #334155; color: #e2e8f0; }
+        .btn-secondary:hover:not(:disabled) { background: #475569; }
+        
+        .header-actions { display: flex; align-items: center; gap: 0.5rem; }
+        .view-all-btn {
+            background: #8b5cf6;
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 0.375rem;
+            cursor: pointer;
+            font-weight: 500;
+        }
+        .view-all-btn:hover { background: #7c3aed; }
+        .refresh-btn {
+            background: none;
+            border: 1px solid #334155;
+            color: #94a3b8;
+            padding: 0.5rem 1rem;
+            border-radius: 0.375rem;
+            cursor: pointer;
+        }
+        .refresh-btn:hover { border-color: #3b82f6; color: #3b82f6; }
+        
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(0,0,0,0.85);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+        .modal.active { display: flex; }
+        .modal-content {
+            background: #1e293b;
+            border-radius: 0.75rem;
+            width: 95%;
+            height: 95%;
+            max-width: 1400px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+        .modal-header {
+            padding: 1rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #334155;
+            flex-shrink: 0;
+        }
+        .modal-body { flex: 1; overflow: hidden; }
+        .modal-body iframe { width: 100%; height: 100%; border: none; }
+        .close-btn {
+            background: #ef4444;
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 0.375rem;
+            cursor: pointer;
+        }
+        .close-btn:hover { background: #dc2626; }
+        
+        .multi-view {
+            display: none;
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: #0f172a;
+            z-index: 2000;
+            flex-direction: column;
+        }
+        .multi-view.active { display: flex; }
+        .multi-view-header {
+            background: #1e293b;
+            padding: 0.75rem 1.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #334155;
+            flex-shrink: 0;
+        }
+        .multi-view-header h2 { font-size: 1.25rem; }
+        .multi-view-header .hint { color: #64748b; font-size: 0.75rem; margin-left: 1rem; }
+        .multi-view-grid {
+            flex: 1;
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            grid-template-rows: repeat(2, 1fr);
+            gap: 4px;
+            padding: 4px;
+            background: #334155;
+            overflow: hidden;
+        }
+        @media (max-width: 1200px) {
+            .multi-view-grid { grid-template-columns: repeat(2, 1fr); grid-template-rows: repeat(3, 1fr); }
+        }
+        @media (max-width: 768px) {
+            .multi-view-grid { grid-template-columns: 1fr; grid-template-rows: repeat(5, 1fr); }
+        }
+        .vnc-cell {
+            background: #1e293b;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        .vnc-cell-header {
+            background: #0f172a;
+            padding: 0.5rem 0.75rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-shrink: 0;
+        }
+        .vnc-cell-title { font-size: 0.875rem; font-weight: 600; display: flex; align-items: center; gap: 0.5rem; }
+        .vnc-cell-actions { display: flex; gap: 0.25rem; }
+        .vnc-cell-btn {
+            background: #334155;
+            color: #94a3b8;
+            border: none;
+            padding: 0.25rem 0.5rem;
+            border-radius: 0.25rem;
+            cursor: pointer;
+            font-size: 0.7rem;
+        }
+        .vnc-cell-btn:hover { background: #475569; color: #e2e8f0; }
+        .vnc-cell-frame { flex: 1; width: 100%; border: none; background: #0f172a; }
+        .vnc-cell-offline {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #64748b;
+            font-size: 0.875rem;
+        }
+        
+        .loading { opacity: 0.6; pointer-events: none; }
+        .toast {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            background: #1e293b;
+            border: 1px solid #334155;
+            padding: 1rem 1.5rem;
+            border-radius: 0.5rem;
+            z-index: 3000;
+            animation: slideIn 0.3s ease;
+        }
+        .toast.success { border-color: #22c55e; }
+        .toast.error { border-color: #ef4444; }
+        @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="logo">
+            <h1>S6 Chromium Grid</h1>
+        </div>
+        <div class="header-actions">
+            <span id="overall-status" class="status-badge">Loading...</span>
+            <button class="view-all-btn" onclick="openMultiView()">View All</button>
+            <button class="refresh-btn" onclick="loadStatus()">Refresh</button>
+        </div>
+    </header>
+    
+    <main>
+        <div id="instances" class="grid"></div>
+    </main>
+    
+    <div id="vnc-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="modal-title">Instance View</h2>
+                <button class="close-btn" onclick="closeModal()">Close</button>
+            </div>
+            <div class="modal-body">
+                <iframe id="vnc-iframe"></iframe>
+            </div>
+        </div>
+    </div>
+    
+    <div id="multi-view" class="multi-view">
+        <div class="multi-view-header">
+            <div style="display: flex; align-items: center;">
+                <h2>All Instances</h2>
+                <span class="hint">Press ESC or M to close</span>
+            </div>
+            <button class="close-btn" onclick="closeMultiView()">Close</button>
+        </div>
+        <div id="multi-view-grid" class="multi-view-grid"></div>
+    </div>
+
+    <script>
+        let instances = [];
+        let refreshInterval;
+        
+        function getVncUrl(wsPort) {
+            const host = window.location.hostname;
+            return `/novnc/vnc.html?host=${host}&port=${wsPort}&autoconnect=true&resize=scale&reconnect=true&reconnect_delay=1000`;
+        }
+        
+        async function loadStatus() {
+            try {
+                const res = await fetch('/api/status');
+                const data = await res.json();
+                instances = data.instances || [];
+                renderInstances();
+                updateOverallStatus(data);
+            } catch (err) {
+                console.error('Failed to load status:', err);
+                showToast('Failed to load status', 'error');
+            }
+        }
+        
+        function updateOverallStatus(data) {
+            const badge = document.getElementById('overall-status');
+            if (data.running === data.total) {
+                badge.className = 'status-badge running';
+                badge.textContent = `${data.running}/${data.total} Running`;
+            } else if (data.running > 0) {
+                badge.className = 'status-badge partial';
+                badge.textContent = `${data.running}/${data.total} Running`;
+            } else {
+                badge.className = 'status-badge offline';
+                badge.textContent = 'All Offline';
+            }
+        }
+        
+        function renderInstances() {
+            const container = document.getElementById('instances');
+            container.innerHTML = instances.map(inst => `
+                <div class="card" id="card-${inst.id}">
+                    <div class="card-header">
+                        <div class="card-title">
+                            <span class="instance-status ${inst.status}"></span>
+                            Instance ${inst.id}
+                        </div>
+                        <span class="status-badge ${inst.status}">${inst.status}</span>
+                    </div>
+                    ${inst.status === 'running' 
+                        ? `<iframe class="vnc-preview" src="${getVncUrl(inst.wsPort)}" loading="lazy"></iframe>`
+                        : `<div class="vnc-placeholder">Instance Offline</div>`
+                    }
+                    <div class="card-info">
+                        <div class="info-item">
+                            <span class="info-label">CDP:</span>
+                            <span class="info-value">${inst.cdpPort}</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">VNC:</span>
+                            <span class="info-value">${inst.vncPort}</span>
+                        </div>
+                    </div>
+                    <div class="card-actions">
+                        ${inst.status === 'running' ? `
+                            <button class="btn btn-primary" onclick="openVNC(${inst.id}, ${inst.wsPort})">Expand</button>
+                            <button class="btn btn-warning" onclick="restartInstance(${inst.id})">Restart</button>
+                            <button class="btn btn-danger" onclick="stopInstance(${inst.id})">Stop</button>
+                        ` : `
+                            <button class="btn btn-success" onclick="restartInstance(${inst.id})">Start</button>
+                        `}
+                        <button class="btn btn-secondary" onclick="copyEndpoint(${inst.cdpPort})">Copy CDP</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        async function restartInstance(id) {
+            const card = document.getElementById(`card-${id}`);
+            card.classList.add('loading');
+            try {
+                const res = await fetch(`/api/instance/${id}/restart`, { method: 'POST' });
+                const data = await res.json();
+                if (data.success) {
+                    showToast(`Instance ${id} restarted`, 'success');
+                    await loadStatus();
+                } else {
+                    showToast(data.error || 'Failed to restart', 'error');
+                }
+            } catch (err) {
+                showToast('Failed to restart instance', 'error');
+            }
+            card.classList.remove('loading');
+        }
+        
+        async function stopInstance(id) {
+            const card = document.getElementById(`card-${id}`);
+            card.classList.add('loading');
+            try {
+                const res = await fetch(`/api/instance/${id}/stop`, { method: 'POST' });
+                const data = await res.json();
+                if (data.success) {
+                    showToast(`Instance ${id} stopped`, 'success');
+                    await loadStatus();
+                } else {
+                    showToast(data.error || 'Failed to stop', 'error');
+                }
+            } catch (err) {
+                showToast('Failed to stop instance', 'error');
+            }
+            card.classList.remove('loading');
+        }
+        
+        function openVNC(id, wsPort) {
+            const modal = document.getElementById('vnc-modal');
+            const iframe = document.getElementById('vnc-iframe');
+            const title = document.getElementById('modal-title');
+            
+            title.textContent = `Instance ${id} - Live View`;
+            iframe.src = getVncUrl(wsPort);
+            modal.classList.add('active');
+        }
+        
+        function closeModal() {
+            const modal = document.getElementById('vnc-modal');
+            const iframe = document.getElementById('vnc-iframe');
+            modal.classList.remove('active');
+            iframe.src = '';
+        }
+        
+        function copyEndpoint(port) {
+            const url = `ws://${window.location.hostname}:${port}`;
+            navigator.clipboard.writeText(url).then(() => {
+                showToast(`Copied: ${url}`, 'success');
+            });
+        }
+        
+        function openMultiView() {
+            const multiView = document.getElementById('multi-view');
+            const grid = document.getElementById('multi-view-grid');
+            
+            grid.innerHTML = instances.map(inst => `
+                <div class="vnc-cell">
+                    <div class="vnc-cell-header">
+                        <div class="vnc-cell-title">
+                            <span class="instance-status ${inst.status}"></span>
+                            Instance ${inst.id}
+                        </div>
+                        <div class="vnc-cell-actions">
+                            <button class="vnc-cell-btn" onclick="popOutVNC(${inst.id}, ${inst.wsPort})" ${inst.status !== 'running' ? 'disabled' : ''}>Pop Out</button>
+                            <button class="vnc-cell-btn" onclick="focusInstance(${inst.id}, ${inst.wsPort})" ${inst.status !== 'running' ? 'disabled' : ''}>Focus</button>
+                        </div>
+                    </div>
+                    ${inst.status === 'running' 
+                        ? `<iframe class="vnc-cell-frame" src="${getVncUrl(inst.wsPort)}"></iframe>`
+                        : `<div class="vnc-cell-offline">Instance Offline</div>`
+                    }
+                </div>
+            `).join('');
+            
+            multiView.classList.add('active');
+        }
+        
+        function closeMultiView() {
+            const multiView = document.getElementById('multi-view');
+            const grid = document.getElementById('multi-view-grid');
+            multiView.classList.remove('active');
+            grid.innerHTML = '';
+        }
+        
+        function popOutVNC(id, wsPort) {
+            window.open(getVncUrl(wsPort), `vnc-${id}`, 'width=1280,height=800');
+        }
+        
+        function focusInstance(id, wsPort) {
+            closeMultiView();
+            openVNC(id, wsPort);
+        }
+        
+        function showToast(message, type = 'info') {
+            const existing = document.querySelector('.toast');
+            if (existing) existing.remove();
+            
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.textContent = message;
+            document.body.appendChild(toast);
+            
+            setTimeout(() => toast.remove(), 3000);
+        }
+        
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                closeModal();
+                closeMultiView();
+            }
+            if ((e.key === 'm' || e.key === 'M') && !e.ctrlKey && !e.metaKey) {
+                const multiView = document.getElementById('multi-view');
+                if (multiView.classList.contains('active')) {
+                    closeMultiView();
+                } else {
+                    openMultiView();
+                }
+            }
+        });
+        
+        loadStatus();
+        refreshInterval = setInterval(loadStatus, 10000);
+    </script>
+</body>
+</html>
