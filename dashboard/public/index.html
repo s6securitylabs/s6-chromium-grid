@@ -4,10 +4,13 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>S6 Chromium Grid</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600&family=Montserrat:wght@300;400;500;600&display=swap" rel="stylesheet">
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-family: 'Montserrat', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             background: #0f172a;
             color: #e2e8f0;
             min-height: 100vh;
@@ -20,15 +23,33 @@
             align-items: center;
             border-bottom: 1px solid #334155;
         }
-        .logo { display: flex; align-items: center; gap: 0.75rem; }
-        h1 { font-size: 1.5rem; font-weight: 600; }
+        .logo { 
+            display: flex; 
+            align-items: center; 
+            gap: 0.75rem; 
+        }
+        .s6-logo-svg {
+            height: 45px;
+            width: auto;
+        }
+        h1 { 
+            font-family: 'Montserrat', sans-serif;
+            font-size: 1.5rem; 
+            font-weight: 300;
+            letter-spacing: 2px;
+        }
         .version-badge {
             background: #334155;
-            color: #94a3b8;
+            color: #888;
             padding: 0.2rem 0.5rem;
             border-radius: 0.25rem;
             font-size: 0.7rem;
             font-weight: 500;
+            font-family: 'Montserrat', sans-serif;
+            letter-spacing: 0.5px;
+        }
+        h2, h3 {
+            font-family: 'Montserrat', sans-serif;
         }
         .status-badge {
             padding: 0.25rem 0.75rem;
@@ -116,14 +137,15 @@
             cursor: pointer;
             font-size: 0.8rem;
             font-weight: 500;
+            font-family: 'Montserrat', sans-serif;
             transition: all 0.15s;
             display: inline-flex;
             align-items: center;
             gap: 0.35rem;
         }
         .btn:disabled { opacity: 0.5; cursor: not-allowed; }
-        .btn-primary { background: #3b82f6; color: white; }
-        .btn-primary:hover:not(:disabled) { background: #2563eb; }
+        .btn-primary { background: #3498db; color: white; }
+        .btn-primary:hover:not(:disabled) { background: #2980b9; }
         .btn-success { background: #22c55e; color: white; }
         .btn-success:hover:not(:disabled) { background: #16a34a; }
         .btn-warning { background: #f59e0b; color: white; }
@@ -135,15 +157,16 @@
         
         .header-actions { display: flex; align-items: center; gap: 0.5rem; }
         .view-all-btn {
-            background: #8b5cf6;
+            background: #9b59b6;
             color: white;
             border: none;
             padding: 0.5rem 1rem;
             border-radius: 0.375rem;
             cursor: pointer;
             font-weight: 500;
+            font-family: 'Montserrat', sans-serif;
         }
-        .view-all-btn:hover { background: #7c3aed; }
+        .view-all-btn:hover { background: #8e44ad; }
         .refresh-btn {
             background: none;
             border: 1px solid #334155;
@@ -151,8 +174,9 @@
             padding: 0.5rem 1rem;
             border-radius: 0.375rem;
             cursor: pointer;
+            font-family: 'Montserrat', sans-serif;
         }
-        .refresh-btn:hover { border-color: #3b82f6; color: #3b82f6; }
+        .refresh-btn:hover { border-color: #3498db; color: #3498db; }
         
         .modal {
             display: none;
@@ -183,8 +207,21 @@
             border-bottom: 1px solid #334155;
             flex-shrink: 0;
         }
-        .modal-body { flex: 1; overflow: hidden; }
-        .modal-body iframe { width: 100%; height: 100%; border: none; }
+        .modal-body { 
+            flex: 1; 
+            overflow-y: auto;
+            overflow-x: hidden;
+        }
+        .modal-body iframe { 
+            width: 100%; 
+            height: 100%; 
+            border: none;
+            flex-shrink: 0;
+        }
+        /* VNC modal should not scroll - iframe handles it */
+        #vnc-modal .modal-body {
+            overflow: hidden;
+        }
         .close-btn {
             background: #ef4444;
             color: white;
@@ -192,6 +229,7 @@
             padding: 0.5rem 1rem;
             border-radius: 0.375rem;
             cursor: pointer;
+            font-family: 'Montserrat', sans-serif;
         }
         .close-btn:hover { background: #dc2626; }
         
@@ -291,6 +329,7 @@
             border-radius: 0.375rem;
             cursor: pointer;
             font-weight: 500;
+            font-family: 'Montserrat', sans-serif;
         }
         .logs-btn:hover { background: #047857; }
         
@@ -391,6 +430,17 @@
             display: flex;
             align-items: center;
             gap: 0.25rem;
+            padding: 0.25rem 0.5rem;
+            border-radius: 0.25rem;
+            background: #334155;
+            cursor: help;
+            transition: background 0.2s;
+        }
+        .system-metrics span:hover {
+            background: #475569;
+        }
+        .system-metrics span:hover {
+            background: #475569;
         }
         .metric-warning { color: #f59e0b; }
         .metric-danger { color: #ef4444; }
@@ -410,6 +460,49 @@
             display: flex;
             flex-direction: column;
             gap: 1rem;
+        }
+        .settings-section {
+            border: 1px solid #334155;
+            border-radius: 0.5rem;
+            overflow: hidden;
+        }
+        .settings-section-header {
+            background: #1e293b;
+            padding: 0.75rem 1rem;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            user-select: none;
+            transition: background 0.2s;
+        }
+        .settings-section-header:hover {
+            background: #334155;
+        }
+        .settings-section-header h3 {
+            margin: 0;
+            font-size: 1rem;
+        }
+        .settings-section-toggle {
+            transition: transform 0.2s;
+            color: #94a3b8;
+        }
+        .settings-section-toggle.collapsed {
+            transform: rotate(-90deg);
+        }
+        .settings-section-content {
+            padding: 1rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            max-height: 1000px;
+            overflow-y: auto;
+            overflow-x: hidden;
+            transition: max-height 0.3s ease-out, padding 0.3s ease-out;
+        }
+        .settings-section-content.collapsed {
+            max-height: 0;
+            padding: 0 1rem;
         }
         .settings-modal label {
             display: flex;
@@ -460,19 +553,69 @@
             display: flex;
             gap: 0.5rem;
         }
+        
+        .rename-icon {
+            font-size: 0.75rem;
+            color: #64748b;
+            cursor: pointer;
+            margin-left: 0.35rem;
+            transition: color 0.15s, transform 0.15s;
+            display: inline-block;
+        }
+        .rename-icon:hover {
+            color: #3498db;
+            transform: scale(1.1);
+        }
+        
+        .rename-input {
+            background: #0f172a;
+            color: #e2e8f0;
+            border: 2px solid #3498db;
+            padding: 0.25rem 0.5rem;
+            border-radius: 0.25rem;
+            font-size: 0.875rem;
+            font-family: 'Montserrat', sans-serif;
+            font-weight: 600;
+            outline: none;
+            transition: border-color 0.15s;
+        }
+        .rename-input:focus {
+            border-color: #22c55e;
+        }
     </style>
 </head>
 <body>
     <header>
         <div class="logo">
-            <h1>S6 Chromium Grid</h1>
-            <span class="version-badge">v1.4.0</span>
+            <svg class="s6-logo-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 110">
+                <defs>
+                    <linearGradient id="grad-s" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" style="stop-color:#ff4d4d;stop-opacity:1" />
+                        <stop offset="100%" style="stop-color:#222;stop-opacity:1" />
+                    </linearGradient>
+                    <linearGradient id="grad-6" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" style="stop-color:#9b59b6;stop-opacity:1" />
+                        <stop offset="100%" style="stop-color:#3498db;stop-opacity:1" />
+                    </linearGradient>
+                </defs>
+                <g transform="translate(0, 80)">
+                    <text font-family="'Barlow Condensed', sans-serif" font-weight="600" font-size="80" x="0" y="0" fill="url(#grad-s)">S</text>
+                    <text font-family="'Barlow Condensed', sans-serif" font-weight="600" font-size="80" x="32" y="0" fill="url(#grad-6)">6</text>
+                </g>
+                <line x1="88" y1="20" x2="88" y2="80" stroke="#333" stroke-width="2" />
+                <g transform="translate(100, 50)">
+                    <text font-family="'Montserrat', sans-serif" font-weight="300" font-size="35" letter-spacing="4" fill="#fff">SECURITY</text>
+                    <text font-family="'Montserrat', sans-serif" font-weight="600" font-size="14" letter-spacing="8" y="30" fill="#888">LABS</text>
+                </g>
+            </svg>
+            <span style="color: #888; font-weight: 300; font-size: 1.2rem; margin-left: 0.5rem;">Chromium Grid</span>
+                <span class="version-badge">v1.4.8</span>
         </div>
         <div class="header-actions">
             <div class="system-metrics">
-                <span id="disk-metric">💾 ...</span>
-                <span id="cpu-metric">⚡ ...</span>
-                <span id="memory-metric">🧠 ...</span>
+                <span id="disk-metric" title="Disk Usage">💿 ...</span>
+                <span id="cpu-metric" title="CPU Usage">📊 ...</span>
+                <span id="memory-metric" title="RAM Usage">🗄️ ...</span>
             </div>
             <span id="overall-status" class="status-badge">Loading...</span>
             <button class="logs-btn" onclick="openSettings()">⚙️ Settings</button>
@@ -545,8 +688,13 @@
                 <button class="close-btn" onclick="closeSettings()">Close</button>
             </div>
             <div class="modal-body">
-                <h3 style="margin-top: 0;">📹 Recording Settings</h3>
-                <label>
+                <div class="settings-section">
+                    <div class="settings-section-header" onclick="toggleSection(this)">
+                        <h3>📹 Recording Settings</h3>
+                        <span class="settings-section-toggle collapsed">▼</span>
+                    </div>
+                    <div class="settings-section-content collapsed">
+                        <label>
                     FPS: <span id="fps-value">15</span>
                     <input type="range" id="fps-slider" min="5" max="60" value="15" oninput="document.getElementById('fps-value').textContent = this.value">
                 </label>
@@ -566,10 +714,15 @@
                     Max File Size (MB):
                     <input type="number" id="max-size-input" value="1024" min="100" max="10000" step="100">
                 </label>
-                
-                <hr style="margin: 1.5rem 0; border: none; border-top: 1px solid #334155;">
-                
-                <h3>🔗 CDP Endpoint Configuration</h3>
+                    </div>
+                </div>
+
+                <div class="settings-section">
+                    <div class="settings-section-header" onclick="toggleSection(this)">
+                        <h3>🔗 CDP Endpoint Configuration</h3>
+                        <span class="settings-section-toggle collapsed">▼</span>
+                    </div>
+                    <div class="settings-section-content collapsed">
                 <label>
                     Custom CDP Host (optional):
                     <input type="text" id="cdp-host-input" placeholder="e.g., 10.10.1.2 or localhost">
@@ -580,77 +733,65 @@
                     <input type="text" id="cdp-format-input" value="ws://{host}:{port}" readonly style="background: #1e293b; color: #64748b;">
                     <small style="display: block; margin-top: 0.25rem; color: #64748b;">{host} and {port} will be replaced automatically</small>
                 </label>
+                    </div>
+                </div>
+
+                <div class="settings-section">
+                    <div class="settings-section-header" onclick="toggleSection(this)">
+                        <h3>🤖 AI Prompt Template</h3>
+                        <span class="settings-section-toggle collapsed">▼</span>
+                    </div>
+                    <div class="settings-section-content collapsed">
+                <p style="color: #64748b; font-size: 0.875rem; margin-bottom: 0.5rem;">
+                    Customize the AI prompt that gets copied when you click "📋 Copy AI Prompt". 
+                    Use placeholders that will be automatically replaced with instance-specific values.
+                </p>
                 
-                <hr style="margin: 1.5rem 0; border: none; border-top: 1px solid #334155;">
+                <div style="background: #1e293b; padding: 0.75rem; border-radius: 0.375rem; margin-bottom: 1rem; border-left: 3px solid #3b82f6;">
+                    <strong style="color: #60a5fa;">Available Placeholders:</strong>
+                    <ul style="margin: 0.5rem 0 0 1.5rem; color: #94a3b8; font-size: 0.875rem;">
+                        <li><code style="color: #fbbf24;">{ENDPOINT}</code> - Full WebSocket URL (e.g., ws://localhost:9222)</li>
+                        <li><code style="color: #fbbf24;">{HOST}</code> - Hostname or IP only (e.g., localhost)</li>
+                        <li><code style="color: #fbbf24;">{PORT}</code> - Port number only (e.g., 9222)</li>
+                        <li><code style="color: #fbbf24;">{INSTANCE_ID}</code> - Instance number (e.g., 1)</li>
+                    </ul>
+                </div>
                 
-                <h3>🎨 Dashboard Preferences</h3>
                 <label>
-                    <input type="checkbox" id="auto-refresh-checkbox"> Auto-refresh every 10 seconds
+                    <strong>AI Prompt Template:</strong>
+                    <textarea 
+                        id="ai-prompt-textarea" 
+                        rows="30" 
+                        style="padding: 0.75rem; background: #0f172a; border: 1px solid #334155; border-radius: 0.375rem; color: #e2e8f0; resize: vertical; min-height: 400px; font-family: 'Courier New', monospace; font-size: 0.875rem; width: 100%; box-sizing: border-box; white-space: pre; overflow-wrap: normal; overflow-x: auto;"
+                        placeholder="Enter your custom AI prompt template..."></textarea>
+                </label>
+                
+                <button class="btn btn-secondary" onclick="resetAIPrompt()" style="margin-top: 0.5rem;">
+                    🔄 Reset to Default
+                </button>
+                    </div>
+                </div>
+
+                <div class="settings-section">
+                    <div class="settings-section-header" onclick="toggleSection(this)">
+                        <h3>🎨 Dashboard Preferences</h3>
+                        <span class="settings-section-toggle collapsed">▼</span>
+                    </div>
+                    <div class="settings-section-content collapsed">
+                <label>
+                    <input type="checkbox" id="auto-refresh-checkbox"> Auto-refresh status every 10 seconds
                 </label>
                 <label>
                     <input type="checkbox" id="show-metrics-checkbox" checked> Show system metrics in header
                 </label>
-                
-                <button class="btn btn-primary" onclick="saveSettings()" style="margin-top: 1rem;">Save All Settings</button>
-            </div>
-        </div>
-    </div>
-
-    <div id="ai-test-modal" class="modal">
-        <div class="logs-content" style="max-width: 800px;">
-            <div class="logs-header">
-                <div class="logs-header-left">
-                    <h2>🤖 AI-Powered Testing</h2>
-                    <span id="ai-test-instance-label" style="color: #64748b; font-size: 0.875rem;"></span>
-                </div>
-                <button class="close-btn" onclick="closeAITest()">Close</button>
-            </div>
-            <div class="logs-body" style="display: flex; flex-direction: column; gap: 1rem; padding: 1.5rem;">
-                <div style="background: #1e293b; padding: 1rem; border-radius: 0.5rem; border-left: 3px solid #3b82f6;">
-                    <strong>🎯 AI Test Generator</strong>
-                    <p style="margin: 0.5rem 0 0 0; color: #94a3b8; font-size: 0.875rem;">
-                        Generate comprehensive E2E tests, visual regression tests, and TDD-style test suites
-                        using AI to interact with this browser instance via CDP.
-                    </p>
-                </div>
-                
-                <label style="display: flex; flex-direction: column; gap: 0.5rem;">
-                    <strong>Test URL:</strong>
-                    <input type="text" id="ai-test-url" placeholder="https://example.com" style="padding: 0.5rem; background: #1e293b; border: 1px solid #334155; border-radius: 0.25rem; color: white;">
+                <label>
+                    <strong>Auto-refresh interval (seconds):</strong>
+                    <input type="number" id="refresh-interval-input" value="10" min="5" max="60" step="5">
                 </label>
-                
-                <label style="display: flex; flex-direction: column; gap: 0.5rem;">
-                    <strong>Test Scenario:</strong>
-                    <textarea id="ai-test-scenario" rows="4" placeholder="Example: Test the login flow, verify form validation, check responsive layout on mobile viewport, test navigation menu..." style="padding: 0.5rem; background: #1e293b; border: 1px solid #334155; border-radius: 0.25rem; color: white; resize: vertical; font-family: inherit;"></textarea>
-                </label>
-                
-                <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
-                    <label style="flex: 1;">
-                        <input type="checkbox" id="ai-test-e2e" checked> E2E Testing
-                    </label>
-                    <label style="flex: 1;">
-                        <input type="checkbox" id="ai-test-visual"> Visual Regression
-                    </label>
-                    <label style="flex: 1;">
-                        <input type="checkbox" id="ai-test-tdd"> TDD Style
-                    </label>
+                    </div>
                 </div>
                 
-                <div style="background: #0f172a; padding: 1rem; border-radius: 0.5rem;">
-                    <strong>CDP Endpoint:</strong>
-                    <code id="ai-test-endpoint" style="display: block; margin-top: 0.5rem; color: #10b981; font-size: 0.875rem;"></code>
-                </div>
-                
-                <div id="ai-test-output" style="display: none; background: #0f172a; padding: 1rem; border-radius: 0.5rem; max-height: 300px; overflow-y: auto; font-family: monospace; font-size: 0.8rem; white-space: pre-wrap;"></div>
-                
-                <button class="btn btn-primary" onclick="generateAITests()" style="align-self: flex-start;">
-                    🚀 Generate AI Tests
-                </button>
-                
-                <div style="margin-top: 0.5rem; padding: 0.75rem; background: #1e293b; border-radius: 0.5rem; font-size: 0.8rem; color: #94a3b8;">
-                    <strong>💡 Tip:</strong> This feature generates AI-powered test code that uses Playwright/Puppeteer
-                    to connect to this CDP endpoint. You can copy the generated code and run it locally or in CI/CD.
-                </div>
+                <button class="btn btn-primary" onclick="saveSettings()" style="margin-top: 1rem; width: 100%;">Save All Settings</button>
             </div>
         </div>
     </div>
@@ -686,11 +827,90 @@
             maxSize: 1073741824
         };
         
+        const DEFAULT_AI_PROMPT = `I need you to write Playwright tests that connect to a remote Chrome browser instance.
+
+Connection Details:
+- CDP Endpoint: {ENDPOINT}
+- Instance ID: {INSTANCE_ID}
+
+Requirements:
+1. Connect using Playwright's connectOverCDP()
+2. Write comprehensive E2E tests for the target application
+3. Include proper error handling and screenshots
+4. Handle authentication if needed
+
+Example connection code:
+\`\`\`typescript
+import { chromium } from 'playwright';
+
+const browser = await chromium.connectOverCDP('{ENDPOINT}');
+const context = await browser.contexts()[0];
+const page = await context.newPage();
+
+// Your tests here
+await page.goto('https://example.com');
+await page.screenshot({ path: 'test.png' });
+
+await browser.close();
+\`\`\`
+
+Please write tests for: [describe your test scenarios]`;
+        
         function getVncUrl(wsPort) {
             const host = window.location.hostname;
             return `/novnc/vnc.html?host=${host}&port=${wsPort}&autoconnect=true&resize=scale&reconnect=true&reconnect_delay=1000`;
         }
         
+        function getInstanceName(id) {
+            const customName = localStorage.getItem('instance-name-' + id);
+            return customName || 'Instance ' + id;
+        }
+        
+        function renameInstance(id) {
+            const currentName = getInstanceName(id);
+            const cardTitle = document.querySelector(`#card-${id} .card-title`);
+            if (!cardTitle) return;
+            
+            // Find the text node (skip the status indicator span)
+            const textContent = cardTitle.childNodes[cardTitle.childNodes.length - 1];
+            const currentDisplayName = textContent.textContent.trim();
+            
+            // Create input field
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.value = currentDisplayName;
+            input.className = 'rename-input';
+            input.style.width = '150px';
+            
+            // Replace text with input
+            textContent.textContent = '';
+            cardTitle.appendChild(input);
+            input.focus();
+            input.select();
+            
+            function saveRename() {
+                const newName = input.value.trim();
+                if (newName && newName !== 'Instance ' + id) {
+                    localStorage.setItem('instance-name-' + id, newName);
+                } else if (!newName || newName === 'Instance ' + id) {
+                    localStorage.removeItem('instance-name-' + id);
+                }
+                renderInstances();
+            }
+            
+            function cancelRename() {
+                renderInstances();
+            }
+            
+            input.addEventListener('blur', saveRename);
+            input.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    saveRename();
+                } else if (e.key === 'Escape') {
+                    cancelRename();
+                }
+            });
+        }
 
         
         async function loadStatus() {
@@ -711,23 +931,60 @@
                 const res = await fetch('/api/metrics');
                 const data = await res.json();
                 
-                const diskPercent = (data.disk.used / data.disk.total) * 100;
+                // Parse disk percent from "52%" string
+                const diskPercent = parseFloat(data.disk.percent);
                 const memPercent = (data.memory.used / data.memory.total) * 100;
                 const cpuPercent = parseFloat(data.cpu.usage);
                 
                 const diskEl = document.getElementById('disk-metric');
-                diskEl.innerHTML = `💾 ${formatBytes(data.disk.used)} / ${formatBytes(data.disk.total)}`;
+                // Disk data is already formatted by server ("125G", "242G")
+                diskEl.innerHTML = `💿 ${data.disk.used} / ${data.disk.total}`;
+                diskEl.title = `Disk Usage: ${data.disk.percent} (${data.disk.used} of ${data.disk.total} used)`;
                 diskEl.className = diskPercent > 90 ? 'metric-danger' : diskPercent > 80 ? 'metric-warning' : '';
                 
                 const cpuEl = document.getElementById('cpu-metric');
-                cpuEl.innerHTML = `⚡ ${cpuPercent}%`;
+                cpuEl.innerHTML = `📊 ${cpuPercent}%`;
+                cpuEl.title = `CPU Usage: ${cpuPercent}%`;
                 cpuEl.className = cpuPercent > 90 ? 'metric-danger' : cpuPercent > 80 ? 'metric-warning' : '';
                 
                 const memEl = document.getElementById('memory-metric');
-                memEl.innerHTML = `🧠 ${formatBytes(data.memory.used)} / ${formatBytes(data.memory.total)}`;
+                memEl.innerHTML = `🗄️ ${formatBytes(data.memory.used)} / ${formatBytes(data.memory.total)}`;
+                memEl.title = `RAM Usage: ${memPercent.toFixed(1)}% (${formatBytes(data.memory.used)} of ${formatBytes(data.memory.total)} used)`;
                 memEl.className = memPercent > 90 ? 'metric-danger' : memPercent > 80 ? 'metric-warning' : '';
+                
+                await loadInstanceMetrics();
             } catch (err) {
                 console.error('Failed to load metrics:', err);
+            }
+        }
+        
+        async function loadInstanceMetrics() {
+            for (const inst of instances) {
+                if (inst.status !== 'running') continue;
+                
+                try {
+                    const res = await fetch(`/api/instance/${inst.id}/metrics`);
+                    const data = await res.json();
+                    
+                    const cpuEl = document.getElementById(`cpu-${inst.id}`);
+                    const ramEl = document.getElementById(`ram-${inst.id}`);
+                    
+                    if (cpuEl && data.running) {
+                        const cpuValue = cpuEl.querySelector('.info-value');
+                        cpuValue.textContent = `${data.cpu}%`;
+                        cpuValue.style.color = parseFloat(data.cpu) > 80 ? '#f59e0b' : '#e2e8f0';
+                        cpuEl.title = `CPU Usage: ${data.cpu}% (PID: ${data.pid})`;
+                    }
+                    
+                    if (ramEl && data.running) {
+                        const ramValue = ramEl.querySelector('.info-value');
+                        ramValue.textContent = formatBytes(data.memory);
+                        ramValue.style.color = data.memory > 1073741824 ? '#f59e0b' : '#e2e8f0';
+                        ramEl.title = `RAM Usage: ${formatBytes(data.memory)} (PID: ${data.pid})`;
+                    }
+                } catch (err) {
+                    console.error(`Failed to load metrics for instance ${inst.id}:`, err);
+                }
             }
         }
         
@@ -768,7 +1025,8 @@
                     <div class="card-header">
                         <div class="card-title">
                             <span class="instance-status ${inst.status}"></span>
-                            Instance ${inst.id}
+                            ${getInstanceName(inst.id)}
+                            <span class="rename-icon" onclick="renameInstance(${inst.id})" title="Rename instance">✏️</span>
                         </div>
                         <span class="status-badge ${inst.status}">${inst.status}</span>
                     </div>
@@ -783,6 +1041,14 @@
                         <div class="info-item">
                             <span class="info-label">VNC:</span>
                             <span class="info-value">${inst.vncPort}</span>
+                        </div>
+                        <div class="info-item" id="cpu-${inst.id}" title="CPU usage for this instance">
+                            <span class="info-label">CPU:</span>
+                            <span class="info-value">...</span>
+                        </div>
+                        <div class="info-item" id="ram-${inst.id}" title="RAM usage for this instance">
+                            <span class="info-label">RAM:</span>
+                            <span class="info-value">...</span>
                         </div>
                     </div>
                     <div class="card-actions">
@@ -802,7 +1068,7 @@
                             
                             <button class="btn btn-primary" onclick="openVNC(${inst.id}, ${inst.wsPort})">📹 View</button>
                             <button class="btn btn-secondary" onclick="copyEndpoint(${inst.id}, ${inst.cdpPort})" title="Copy WebSocket CDP endpoint">📋 CDP</button>
-                            <button class="btn btn-secondary" onclick="openAITest(${inst.id}, ${inst.cdpPort})" title="AI-powered E2E testing">🤖 AI Test</button>
+                            <button class="btn btn-secondary" onclick="copyAIPrompt(${inst.id}, ${inst.cdpPort})" title="Copy AI testing prompt">📋 Copy AI Prompt</button>
                             <button class="btn btn-warning" onclick="restartInstance(${inst.id})" ${inst.recording ? 'disabled' : ''}>Restart</button>
                             <button class="btn btn-danger" onclick="stopInstance(${inst.id})" ${inst.recording ? 'disabled' : ''}>Stop</button>
                         ` : `
@@ -850,12 +1116,30 @@
             card.classList.remove('loading');
         }
         
+        function closeAllModals() {
+            // Close all modals to prevent overlap
+            const modals = ['vnc-modal', 'settings-modal', 'recordings-modal', 'logs-modal'];
+            modals.forEach(modalId => {
+                const modal = document.getElementById(modalId);
+                if (modal) modal.classList.remove('active');
+            });
+            
+            // Close multi-view
+            const multiView = document.getElementById('multi-view');
+            if (multiView) multiView.classList.remove('active');
+            
+            // Clear VNC iframe when closing
+            const vncIframe = document.getElementById('vnc-iframe');
+            if (vncIframe) vncIframe.src = '';
+        }
+        
         function openVNC(id, wsPort) {
+            closeAllModals();
             const modal = document.getElementById('vnc-modal');
             const iframe = document.getElementById('vnc-iframe');
             const title = document.getElementById('modal-title');
             
-            title.textContent = `Instance ${id} - Live View`;
+            title.textContent = `${getInstanceName(id)} - Live View`;
             iframe.src = getVncUrl(wsPort);
             modal.classList.add('active');
         }
@@ -870,17 +1154,19 @@
         function copyEndpoint(instanceId, port) {
             const cdpHost = localStorage.getItem('cdp-custom-host') || window.location.hostname;
             const url = `ws://${cdpHost}:${port}`;
-            navigator.clipboard.writeText(url).then(() => {
-                showToast(`✓ Copied to clipboard: ${url}`, 'success');
-            }).catch(() => {
-                const temp = document.createElement('textarea');
-                temp.value = url;
-                document.body.appendChild(temp);
-                temp.select();
-                document.execCommand('copy');
-                document.body.removeChild(temp);
-                showToast(`✓ Copied to clipboard: ${url}`, 'success');
-            });
+            
+            // Check if modern clipboard API is available
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(url).then(() => {
+                    showToast(`✓ Copied to clipboard: ${url}`, 'success');
+                }).catch((err) => {
+                    console.error('Clipboard API failed:', err);
+                    copyToClipboardFallback(url);
+                });
+            } else {
+                // Fallback for browsers without clipboard API
+                copyToClipboardFallback(url);
+            }
         }
         
         function loadRecordingSettings() {
@@ -918,12 +1204,33 @@
         }
         
         function openSettings() {
+            closeAllModals();
             loadSettings();
             document.getElementById('settings-modal').classList.add('active');
         }
         
         function closeSettings() {
             document.getElementById('settings-modal').classList.remove('active');
+        }
+        
+        function toggleSection(header) {
+            const content = header.nextElementSibling;
+            const toggle = header.querySelector('.settings-section-toggle');
+            const isCurrentlyCollapsed = content.classList.contains('collapsed');
+            
+            // Close all sections first (accordion behavior)
+            document.querySelectorAll('.settings-section-content').forEach(section => {
+                section.classList.add('collapsed');
+            });
+            document.querySelectorAll('.settings-section-toggle').forEach(arrow => {
+                arrow.classList.add('collapsed');
+            });
+            
+            // If the clicked section was collapsed, open it (if it was open, leave it closed)
+            if (isCurrentlyCollapsed) {
+                content.classList.remove('collapsed');
+                toggle.classList.remove('collapsed');
+            }
         }
         
         function loadSettings() {
@@ -948,6 +1255,13 @@
             
             const showMetrics = localStorage.getItem('show-metrics') !== 'false';
             document.getElementById('show-metrics-checkbox').checked = showMetrics;
+            
+            const refreshIntervalValue = parseInt(localStorage.getItem('refresh-interval')) || 10;
+            document.getElementById('refresh-interval-input').value = refreshIntervalValue;
+            
+            // Load AI prompt template from localStorage or default
+            const aiPrompt = localStorage.getItem('ai-prompt-template') || DEFAULT_AI_PROMPT;
+            document.getElementById('ai-prompt-textarea').value = aiPrompt;
         }
         
         function saveSettings() {
@@ -975,109 +1289,91 @@
                 metricsDiv.style.display = showMetrics ? 'flex' : 'none';
             }
             
+            const refreshIntervalValue = parseInt(document.getElementById('refresh-interval-input').value);
+            localStorage.setItem('refresh-interval', refreshIntervalValue.toString());
+            
+            // Save AI prompt template
+            const aiPrompt = document.getElementById('ai-prompt-textarea').value.trim();
+            if (aiPrompt) {
+                localStorage.setItem('ai-prompt-template', aiPrompt);
+            } else {
+                // If empty, remove from localStorage (will use default)
+                localStorage.removeItem('ai-prompt-template');
+            }
+            
             showToast('✓ All settings saved', 'success');
             closeSettings();
+            
+            // Restart auto-refresh if enabled
+            if (autoRefresh) {
+                clearInterval(refreshInterval);
+                startAutoRefresh();
+            }
         }
         
-        let currentAITestInstance = null;
-        let currentAITestPort = null;
-        
-        function openAITest(instanceId, cdpPort) {
-            currentAITestInstance = instanceId;
-            currentAITestPort = cdpPort;
-            
-            const cdpHost = localStorage.getItem('cdp-custom-host') || window.location.hostname;
-            const endpoint = `ws://${cdpHost}:${cdpPort}`;
-            
-            document.getElementById('ai-test-instance-label').textContent = `Instance ${instanceId}`;
-            document.getElementById('ai-test-endpoint').textContent = endpoint;
-            document.getElementById('ai-test-output').style.display = 'none';
-            document.getElementById('ai-test-output').textContent = '';
-            document.getElementById('ai-test-modal').classList.add('active');
-        }
-        
-        function closeAITest() {
-            document.getElementById('ai-test-modal').classList.remove('active');
-            currentAITestInstance = null;
-            currentAITestPort = null;
-        }
-        
-        async function generateAITests() {
-            const url = document.getElementById('ai-test-url').value.trim();
-            const scenario = document.getElementById('ai-test-scenario').value.trim();
-            const includeE2E = document.getElementById('ai-test-e2e').checked;
-            const includeVisual = document.getElementById('ai-test-visual').checked;
-            const includeTDD = document.getElementById('ai-test-tdd').checked;
-            
-            if (!url) {
-                showToast('⚠️ Please enter a test URL', 'error');
+        function resetAIPrompt() {
+            if (!confirm('Reset AI prompt template to default?')) {
                 return;
             }
             
+            // Clear from localStorage
+            localStorage.removeItem('ai-prompt-template');
+            
+            // Reload default into textarea
+            document.getElementById('ai-prompt-textarea').value = DEFAULT_AI_PROMPT;
+            
+            showToast('✓ AI prompt reset to default', 'success');
+        }
+        
+        function copyAIPrompt(instanceId, cdpPort) {
             const cdpHost = localStorage.getItem('cdp-custom-host') || window.location.hostname;
-            const endpoint = `ws://${cdpHost}:${currentAITestPort}`;
+            const endpoint = `ws://${cdpHost}:${cdpPort}`;
             
-            const output = document.getElementById('ai-test-output');
-            output.style.display = 'block';
-            output.textContent = 'Generating AI-powered test suite...\n\n';
+            // Get custom template from localStorage OR use default
+            const template = localStorage.getItem('ai-prompt-template') || DEFAULT_AI_PROMPT;
             
-            let testCode = `// AI-Generated Test Suite for Instance ${currentAITestInstance}\n`;
-            testCode += `// CDP Endpoint: ${endpoint}\n`;
-            testCode += `// Target URL: ${url}\n`;
-            testCode += `// Generated: ${new Date().toISOString()}\n\n`;
-            testCode += `import { chromium } from 'playwright';\n\n`;
-            testCode += `describe('${scenario || 'Automated Testing'}', () => {\n`;
-            testCode += `  let browser, context, page;\n\n`;
-            testCode += `  beforeAll(async () => {\n`;
-            testCode += `    browser = await chromium.connectOverCDP('${endpoint}');\n`;
-            testCode += `    context = await browser.newContext();\n`;
-            testCode += `    page = await context.newPage();\n`;
-            testCode += `  });\n\n`;
-            testCode += `  afterAll(async () => {\n`;
-            testCode += `    await context.close();\n`;
-            testCode += `  });\n\n`;
-            
-            if (includeE2E) {
-                testCode += `  // E2E Test: ${scenario || 'Page Load and Navigation'}\n`;
-                testCode += `  it('should load the page successfully', async () => {\n`;
-                testCode += `    await page.goto('${url}');\n`;
-                testCode += `    await expect(page).toHaveTitle(/.+/);\n`;
-                testCode += `    console.log('✓ Page loaded:', await page.title());\n`;
-                testCode += `  });\n\n`;
+            // Replace all placeholders
+            const prompt = template
+                .replace(/{ENDPOINT}/g, endpoint)
+                .replace(/{HOST}/g, cdpHost)
+                .replace(/{PORT}/g, cdpPort)
+                .replace(/{INSTANCE_ID}/g, instanceId);
+
+            // Check if modern clipboard API is available
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(prompt).then(() => {
+                    showToast('✓ AI prompt copied to clipboard!', 'success');
+                }).catch((err) => {
+                    console.error('Clipboard API failed:', err);
+                    copyToClipboardFallback(prompt);
+                });
+            } else {
+                // Fallback for browsers without clipboard API
+                copyToClipboardFallback(prompt);
             }
-            
-            if (includeVisual) {
-                testCode += `  // Visual Regression Test\n`;
-                testCode += `  it('should match visual snapshot', async () => {\n`;
-                testCode += `    await page.goto('${url}');\n`;
-                testCode += `    await expect(page).toHaveScreenshot('baseline.png');\n`;
-                testCode += `  });\n\n`;
+        }
+        
+        function copyToClipboardFallback(text) {
+            try {
+                const temp = document.createElement('textarea');
+                temp.value = text;
+                temp.style.position = 'fixed';
+                temp.style.left = '-9999px';
+                document.body.appendChild(temp);
+                temp.select();
+                temp.setSelectionRange(0, 99999); // For mobile devices
+                const success = document.execCommand('copy');
+                document.body.removeChild(temp);
+                
+                if (success) {
+                    showToast('✓ AI prompt copied to clipboard!', 'success');
+                } else {
+                    showToast('❌ Failed to copy. Please copy manually.', 'error');
+                }
+            } catch (err) {
+                console.error('Fallback copy failed:', err);
+                showToast('❌ Copy not supported. Please copy manually.', 'error');
             }
-            
-            if (includeTDD) {
-                testCode += `  // TDD-Style Test: ${scenario || 'Component Behavior'}\n`;
-                testCode += `  it('should have expected DOM structure', async () => {\n`;
-                testCode += `    await page.goto('${url}');\n`;
-                testCode += `    const hasNav = await page.locator('nav').count() > 0;\n`;
-                testCode += `    expect(hasNav).toBeTruthy();\n`;
-                testCode += `  });\n\n`;
-            }
-            
-            if (scenario) {
-                testCode += `  // Custom Scenario Test\n`;
-                testCode += `  it('${scenario}', async () => {\n`;
-                testCode += `    await page.goto('${url}');\n`;
-                testCode += `    // TODO: Implement your test scenario\n`;
-                testCode += `    // Example: await page.click('button');\n`;
-                testCode += `    // Example: await page.fill('input[name="email"]', 'test@example.com');\n`;
-                testCode += `  });\n\n`;
-            }
-            
-            testCode += `});\n`;
-            
-            output.textContent = testCode;
-            
-            showToast('✓ AI test suite generated! Copy the code to use it.', 'success');
         }
         
         async function startRecording(id) {
@@ -1171,6 +1467,7 @@
         }
         
         async function openRecordingsManager() {
+            closeAllModals();
             document.getElementById('recordings-modal').classList.add('active');
             await loadRecordings();
         }
@@ -1229,6 +1526,7 @@
         }
         
         function openMultiView() {
+            closeAllModals();
             const multiView = document.getElementById('multi-view');
             const grid = document.getElementById('multi-view-grid');
             
@@ -1242,7 +1540,7 @@
                     <div class="vnc-cell-header">
                         <div class="vnc-cell-title">
                             <span class="instance-status ${inst.status}"></span>
-                            Instance ${inst.id}
+                            ${getInstanceName(inst.id)}
                         </div>
                         <div class="vnc-cell-actions">
                             <button class="vnc-cell-btn" onclick="popOutVNC(${inst.id}, ${inst.wsPort})" ${inst.status !== 'running' ? 'disabled' : ''}>Pop Out</button>
@@ -1288,26 +1586,13 @@
         }
         
         document.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape') {
+            const isTyping = e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.isContentEditable;
+            
+            if (e.key === 'Escape' && !isTyping) {
                 closeModal();
                 closeMultiView();
                 closeLogs();
-            }
-            if ((e.key === 'm' || e.key === 'M') && !e.ctrlKey && !e.metaKey) {
-                const multiView = document.getElementById('multi-view');
-                if (multiView.classList.contains('active')) {
-                    closeMultiView();
-                } else {
-                    openMultiView();
-                }
-            }
-            if ((e.key === 'l' || e.key === 'L') && !e.ctrlKey && !e.metaKey) {
-                const logsModal = document.getElementById('logs-modal');
-                if (logsModal.classList.contains('active')) {
-                    closeLogs();
-                } else {
-                    openLogs();
-                }
+                closeSettings();
             }
         });
         
@@ -1316,6 +1601,7 @@
 
         
         async function openLogs() {
+            closeAllModals();
             const modal = document.getElementById('logs-modal');
             modal.classList.add('active');
             await loadLogsList();
@@ -1418,10 +1704,20 @@
             if (checkbox) checkbox.checked = false;
         }
         
-        loadStatus();
-        refreshInterval = setInterval(loadStatus, 10000);
+        function startAutoRefresh() {
+            if (refreshInterval) {
+                clearInterval(refreshInterval);
+            }
+            const interval = parseInt(localStorage.getItem('refresh-interval')) || 10;
+            const autoRefresh = localStorage.getItem('auto-refresh') === 'true';
+            if (autoRefresh) {
+                refreshInterval = setInterval(loadStatus, interval * 1000);
+            }
+        }
         
-        // Start metrics polling
+        loadStatus();
+        startAutoRefresh();
+        
         loadMetrics();
         metricsInterval = setInterval(loadMetrics, 5000);
         
