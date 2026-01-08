@@ -609,7 +609,7 @@
                 </g>
             </svg>
             <span style="color: #888; font-weight: 300; font-size: 1.2rem; margin-left: 0.5rem;">Chromium Grid</span>
-                <span class="version-badge">v1.6.0</span>
+                <span class="version-badge">v2.0.0-beta1</span>
         </div>
         <div class="header-actions">
             <div class="system-metrics">
@@ -743,7 +743,7 @@
                     </div>
                     <div class="settings-section-content collapsed">
                 <p style="color: #64748b; font-size: 0.875rem; margin-bottom: 0.5rem;">
-                    Customize the AI prompt that gets copied when you click "📋 Copy AI Prompt". 
+                    Customize the AI prompt that gets copied when you click "📋 Copy Prompt". 
                     Use placeholders that will be automatically replaced with instance-specific values.
                 </p>
                 
@@ -1067,8 +1067,8 @@ Please write tests for: [describe your test scenarios]`;
                             </button>
                             
                             <button class="btn btn-primary" onclick="openVNC(${inst.id}, ${inst.wsPort})">📹 View</button>
-                            <button class="btn btn-secondary" onclick="copyEndpoint(${inst.id}, ${inst.cdpPort})" title="Copy WebSocket CDP endpoint">📋 CDP</button>
-                            <button class="btn btn-secondary" onclick="copyAIPrompt(${inst.id}, ${inst.cdpPort})" title="Copy AI testing prompt">📋 Copy AI Prompt</button>
+                            <button class="btn btn-secondary" onclick="copyEndpoint(${inst.id}, ${inst.cdpPort})" title="Copy WebSocket CDP endpoint">📋 Copy CDP</button>
+                            <button class="btn btn-secondary" onclick="copyAIPrompt(${inst.id}, ${inst.cdpPort})" title="Copy AI testing prompt">📋 Copy Prompt</button>
                             <button class="btn btn-warning" onclick="restartInstance(${inst.id})" ${inst.recording ? 'disabled' : ''}>Restart</button>
                             <button class="btn btn-danger" onclick="stopInstance(${inst.id})" ${inst.recording ? 'disabled' : ''}>Stop</button>
                         ` : `
