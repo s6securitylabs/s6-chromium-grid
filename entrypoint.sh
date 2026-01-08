@@ -1,6 +1,7 @@
 #!/bin/bash
 set -e
 
+DYNAMIC_MODE="${DYNAMIC_MODE:-false}"
 INSTANCE_COUNT="${INSTANCE_COUNT:-5}"
 ENABLE_VNC="${ENABLE_VNC:-true}"
 SCREEN_WIDTH="${SCREEN_WIDTH:-1920}"
@@ -11,21 +12,37 @@ BASE_VNC_PORT="${BASE_VNC_PORT:-5900}"
 DASHBOARD_PORT="${DASHBOARD_PORT:-8080}"
 DASHBOARD_USER="${DASHBOARD_USER:-admin}"
 DASHBOARD_PASS="${DASHBOARD_PASS:-admin}"
+MAX_DYNAMIC_INSTANCES="${MAX_DYNAMIC_INSTANCES:-20}"
+INSTANCE_TIMEOUT_MINUTES="${INSTANCE_TIMEOUT_MINUTES:-30}"
+CDP_GATEWAY_PORT="${CDP_GATEWAY_PORT:-9222}"
 LOG_DIR="/var/log/s6-grid"
 
 mkdir -p "$LOG_DIR"
 chmod 777 "$LOG_DIR"
 chown -R chrome:chrome "$LOG_DIR" 2>/dev/null || true
 
-export INSTANCE_COUNT BASE_CDP_PORT BASE_VNC_PORT DASHBOARD_PORT DASHBOARD_USER DASHBOARD_PASS EXTERNAL_PORT_PREFIX LOG_DIR
+mkdir -p "/data"
+chmod 777 "/data"
+chown -R chrome:chrome "/data" 2>/dev/null || true
+
+export DYNAMIC_MODE INSTANCE_COUNT BASE_CDP_PORT BASE_VNC_PORT DASHBOARD_PORT DASHBOARD_USER DASHBOARD_PASS EXTERNAL_PORT_PREFIX LOG_DIR MAX_DYNAMIC_INSTANCES INSTANCE_TIMEOUT_MINUTES CDP_GATEWAY_PORT SCREEN_WIDTH SCREEN_HEIGHT USE_GPU
 
 log() {
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*" | tee -a "$LOG_DIR/entrypoint.log"
 }
 
 log "=== S6 Chromium Grid Starting ==="
-log "INSTANCE_COUNT=$INSTANCE_COUNT"
-log "ENABLE_VNC=$ENABLE_VNC"
+log "MODE=$([[ "$DYNAMIC_MODE" == "true" ]] && echo "DYNAMIC" || echo "STATIC")"
+
+if [ "$DYNAMIC_MODE" = "true" ]; then
+    log "MAX_DYNAMIC_INSTANCES=$MAX_DYNAMIC_INSTANCES"
+    log "INSTANCE_TIMEOUT_MINUTES=$INSTANCE_TIMEOUT_MINUTES"
+    log "CDP_GATEWAY_PORT=$CDP_GATEWAY_PORT"
+else
+    log "INSTANCE_COUNT=$INSTANCE_COUNT"
+    log "ENABLE_VNC=$ENABLE_VNC"
+fi
+
 log "USE_GPU=$USE_GPU"
 log "SCREEN=${SCREEN_WIDTH}x${SCREEN_HEIGHT}"
 
@@ -43,9 +60,13 @@ SANDBOX_FLAGS="--no-sandbox"
 
 CHROME_COMMON_FLAGS="$SANDBOX_FLAGS --disable-dev-shm-usage --no-first-run --no-default-browser-check --no-pings --noerrdialogs --disable-infobars --disable-session-crashed-bubble --disable-search-engine-choice-screen --disable-sync --disable-sync-preferences --disable-background-networking --disable-client-side-phishing-detection --disable-component-update --disable-default-apps --disable-extensions --disable-features=Translate,OptimizationHints,MediaRouter,DialMediaRouteProvider,CalculateNativeWinOcclusion,InterestFeedContentSuggestions,PasswordManager,AutofillServerCommunication,ChromeWhatsNewUI,HttpsUpgrades,HeavyAdIntervention --disable-hang-monitor --disable-ipc-flooding-protection --disable-popup-blocking --disable-prompt-on-repost --disable-domain-reliability --disable-breakpad --disable-renderer-backgrounding --disable-backgrounding-occluded-windows --disable-background-timer-throttling --aggressive-cache-discard --disable-back-forward-cache --memory-pressure-off --password-store=basic --use-mock-keychain --deny-permission-prompts --disable-notifications --enable-features=NetworkService,NetworkServiceInProcess --force-color-profile=srgb --disable-web-security --allow-running-insecure-content --autoplay-policy=no-user-gesture-required $GL_FLAGS"
 
-log "Starting $INSTANCE_COUNT browser instances..."
-
-for i in $(seq 1 "$INSTANCE_COUNT"); do
+if [ "$DYNAMIC_MODE" = "true" ]; then
+    log "Dynamic mode enabled - instances will be created on-demand"
+    log "Skipping static instance creation"
+else
+    log "Starting $INSTANCE_COUNT browser instances..."
+    
+    for i in $(seq 1 "$INSTANCE_COUNT"); do
     DISPLAY_NUM=$((99 + i))
     CDP_PORT=$((BASE_CDP_PORT + i - 1))
     VNC_PORT=$((BASE_VNC_PORT + i - 1))
@@ -103,11 +124,12 @@ for i in $(seq 1 "$INSTANCE_COUNT"); do
     socat TCP-LISTEN:${CDP_PORT},fork,bind=0.0.0.0,reuseaddr TCP:127.0.0.1:${INTERNAL_CDP_PORT} >> "$INSTANCE_LOG" 2>&1 &
     
     sleep 0.5
-done
-
-log "All $INSTANCE_COUNT instances started"
-log "CDP ports: $BASE_CDP_PORT-$((BASE_CDP_PORT + INSTANCE_COUNT - 1))"
-log "VNC ports: $BASE_VNC_PORT-$((BASE_VNC_PORT + INSTANCE_COUNT - 1))"
+    done
+    
+    log "All $INSTANCE_COUNT instances started"
+    log "CDP ports: $BASE_CDP_PORT-$((BASE_CDP_PORT + INSTANCE_COUNT - 1))"
+    log "VNC ports: $BASE_VNC_PORT-$((BASE_VNC_PORT + INSTANCE_COUNT - 1))"
+fi
 
 log "Starting dashboard on port $DASHBOARD_PORT..."
 cd /dashboard && node server.js 2>&1 | tee -a "$LOG_DIR/dashboard.log" &

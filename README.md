@@ -3,7 +3,7 @@
 [![Build and Push](https://github.com/s6securitylabs/s6-chromium-grid/actions/workflows/build-push.yml/badge.svg)](https://github.com/s6securitylabs/s6-chromium-grid/actions/workflows/build-push.yml)
 [![GHCR](https://img.shields.io/badge/GHCR-s6--chromium--grid-blue?logo=github)](https://github.com/s6securitylabs/s6-chromium-grid/pkgs/container/s6-chromium-grid)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Version](https://img.shields.io/badge/version-1.5.0-green.svg)](https://github.com/s6securitylabs/s6-chromium-grid/releases)
+[![Version](https://img.shields.io/badge/version-1.6.0-green.svg)](https://github.com/s6securitylabs/s6-chromium-grid/releases)
 
 **Production-ready multi-instance headless Chromium environment for browser automation, E2E testing, and web scraping.**
 
@@ -15,6 +15,7 @@ Perfect for parallel test execution, distributed web scraping, browser automatio
 
 ### Core Capabilities
 - 🚀 **Multiple Browser Instances** - Run 1-10+ isolated Chromium instances in parallel
+- 🎯 **Dynamic Mode** - NEW! Path-based routing with on-demand instance provisioning (`ws://host:port/project-name/`)
 - 🔌 **CDP Access** - Full Chrome DevTools Protocol support for Playwright, Puppeteer, and Selenium
 - 📺 **VNC Monitoring** - Real-time visual debugging via noVNC web viewer
 - 🎯 **Multi-View Dashboard** - Monitor all browser instances simultaneously with live metrics
@@ -92,6 +93,31 @@ docker logs s6-chromium-grid
 # Test API endpoint
 curl -u admin:changeme http://localhost:8080/api/status
 ```
+
+### 🎯 NEW: Dynamic Mode (v1.6.0+)
+
+Enable path-based routing for on-demand instance provisioning:
+
+```bash
+docker run -d \
+  --name s6-chromium-grid \
+  --cap-add NET_ADMIN --cap-add NET_RAW --cap-add SYS_ADMIN \
+  --shm-size=2g \
+  -p 8080:8080 \
+  -p 9222:9222 \
+  -e DYNAMIC_MODE=true \
+  -e MAX_DYNAMIC_INSTANCES=20 \
+  ghcr.io/s6securitylabs/s6-chromium-grid:latest
+```
+
+**Connect with project-based routing:**
+```typescript
+const browser = await chromium.connectOverCDP('ws://localhost:9222/my-project/');
+```
+
+Instances are automatically created on first connection and cleaned up after 30 minutes of inactivity.
+
+**📖 Full Documentation:** [DYNAMIC-MODE.md](./DYNAMIC-MODE.md)
 
 ## 🐳 Docker Deployment
 

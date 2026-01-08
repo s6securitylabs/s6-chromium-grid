@@ -5,6 +5,51 @@ All notable changes to S6 Chromium Grid will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.6.0] - 2026-01-09
+
+### Added
+- **🎯 Dynamic Mode** - Major new feature for on-demand instance provisioning
+  - Path-based WebSocket routing: `ws://host:port/project-name/`
+  - Automatic instance creation on first connection
+  - Auto-cleanup of idle instances after configurable timeout (default: 30 minutes)
+  - Single gateway port handles all connections
+  - Project-based isolation with dedicated data directories
+  - State persistence across container restarts via JSON registry
+  - Resource limits: configurable max instances (default: 20)
+  - New DynamicInstanceManager class for lifecycle management
+  - WebSocketGateway for bidirectional proxy routing
+  - Dashboard API endpoints for dynamic instance management
+  - Comprehensive documentation in DYNAMIC-MODE.md
+
+### Changed
+- **Environment Variables**
+  - Added `DYNAMIC_MODE` (default: false) - Enable/disable dynamic mode
+  - Added `MAX_DYNAMIC_INSTANCES` (default: 20) - Maximum concurrent dynamic instances
+  - Added `INSTANCE_TIMEOUT_MINUTES` (default: 30) - Idle timeout for auto-cleanup
+  - Added `CDP_GATEWAY_PORT` (default: 9222) - WebSocket gateway port
+- **Entrypoint Behavior**
+  - Skip static instance creation when `DYNAMIC_MODE=true`
+  - Console output shows mode (STATIC vs DYNAMIC) with relevant configuration
+- **Dashboard Package**
+  - Added `ws` v8.16.0 dependency for WebSocket proxying
+  - Version bumped to 1.6.0
+
+### Technical
+- New modules: `dynamic-manager.js`, `websocket-gateway.js`
+- Dynamic instances use isolated port ranges (CDP: 20000+, Display: 200+)
+- Cleanup runs every 5 minutes to stop idle instances
+- Activity tracking updates on every WebSocket message (bidirectional)
+- Graceful shutdown for dynamic instances on SIGTERM/SIGINT
+- Full JSDoc documentation for public APIs
+
+### Documentation
+- Added DYNAMIC-MODE.md with comprehensive guide
+- Updated README.md with Dynamic Mode quick start
+- Updated .env.example with dynamic mode variables
+- API reference for dynamic instance endpoints
+
+---
+
 ## [1.5.0] - 2026-01-09
 
 ### Added

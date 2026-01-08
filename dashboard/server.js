@@ -7,6 +7,34 @@ const fs = require('fs');
 const { spawn, exec } = require('child_process');
 const crypto = require('crypto');
 
+const DYNAMIC_MODE = process.env.DYNAMIC_MODE === 'true';
+let dynamicManager = null;
+let wsGateway = null;
+
+if (DYNAMIC_MODE) {
+    const DynamicInstanceManager = require('./dynamic-manager');
+    const WebSocketGateway = require('./websocket-gateway');
+    
+    const maxDynamicInstances = parseInt(process.env.MAX_DYNAMIC_INSTANCES || '20');
+    const idleTimeoutMinutes = parseInt(process.env.INSTANCE_TIMEOUT_MINUTES || '30');
+    const gatewayPort = parseInt(process.env.CDP_GATEWAY_PORT || '9222');
+    
+    dynamicManager = new DynamicInstanceManager({
+        maxInstances: maxDynamicInstances,
+        idleTimeoutMinutes: idleTimeoutMinutes,
+        baseCdpPort: 20000,
+        baseDisplay: 200,
+        useGpu: process.env.USE_GPU === 'true',
+        screenWidth: process.env.SCREEN_WIDTH || '1920',
+        screenHeight: process.env.SCREEN_HEIGHT || '1080'
+    });
+    
+    wsGateway = new WebSocketGateway(dynamicManager, { port: gatewayPort });
+    wsGateway.start();
+    
+    console.log(`[Dynamic Mode] Enabled - Gateway on port ${gatewayPort}`);
+}
+
 const app = express();
 const PORT = process.env.DASHBOARD_PORT || 8080;
 const INSTANCE_COUNT = parseInt(process.env.INSTANCE_COUNT || '5');
@@ -59,6 +87,7 @@ app.use(basicAuth({
 }));
 
 app.use(express.json());
+
 app.use(express.static(path.join(__dirname, 'public')));
 app.use('/novnc', express.static(NOVNC_PATH));
 
@@ -589,6 +618,69 @@ app.delete('/api/recordings/:filename', async (req, res) => {
 
 app.get('/api/metrics', async (req, res) => {
     try {
+        const diskCmd = `df -h / | awk 'NR==2 {print $2,$3,$5}'`;
+        const { stdout: diskOut } = await runCommand(diskCmd);
+        const [diskTotal, diskUsed, diskPercent] = diskOut.trim().split(' ');
+        
+        const cpuCmd = `top -bn1 | grep "Cpu(s)" | sed "s/.*, *\\([0-9.]*\\)%* id.*/\\1/" | awk '{print 100 - $1}'`;
+        const { stdout: cpuOut } = await runCommand(cpuCmd);
+        const cpuUsage = parseFloat(cpuOut.trim()).toFixed(1);
+        
+        const memCmd = `free -b | awk 'NR==2 {print $2,$3}'`;
+        const { stdout: memOut } = await runCommand(memCmd);
+        const [memTotal, memUsed] = memOut.trim().split(' ').map(v => parseInt(v));
+        
+        res.json({
+            disk: { total: diskTotal, used: diskUsed, percent: diskPercent },
+            cpu: { usage: cpuUsage },
+            memory: { total: memTotal, used: memUsed }
+        });
+    } catch (err) {
+        console.error('[Metrics] Error:', err);
+        res.status(500).json({ error: 'Failed to fetch metrics' });
+    }
+});
+
+app.get('/api/instance/:id/metrics', async (req, res) => {
+    try {
+        const id = parseInt(req.params.id);
+        const dataDir = `/data/instance-${id}`;
+        
+        const pidCmd = `pgrep -f "user-data-dir=${dataDir}" | head -1`;
+        const { stdout: pidOut } = await runCommand(pidCmd);
+        const pid = pidOut.trim();
+        
+        if (!pid) {
+            return res.json({ 
+                cpu: 0, 
+                memory: 0, 
+                running: false 
+            });
+        }
+        
+        const cpuCmd = `ps -p ${pid} -o %cpu --no-headers`;
+        const { stdout: cpuOut } = await runCommand(cpuCmd);
+        const cpuUsage = parseFloat(cpuOut.trim()) || 0;
+        
+        const memCmd = `ps -p ${pid} -o rss --no-headers`;
+        const { stdout: memOut } = await runCommand(memCmd);
+        const memKB = parseInt(memOut.trim()) || 0;
+        const memBytes = memKB * 1024;
+        
+        res.json({
+            cpu: cpuUsage.toFixed(1),
+            memory: memBytes,
+            running: true,
+            pid: parseInt(pid)
+        });
+    } catch (err) {
+        console.error(`[Metrics] Instance ${req.params.id} error:`, err);
+        res.json({ cpu: 0, memory: 0, running: false });
+    }
+});
+
+app.get('/api/metrics-legacy', async (req, res) => {
+    try {
         const diskUsage = await runCommand('df -B1 / | tail -1');
         const diskParts = diskUsage.stdout.trim().split(/\s+/);
         const diskTotal = parseInt(diskParts[1]);
@@ -671,6 +763,45 @@ function startAllWebsockify() {
     }
 }
 
+if (DYNAMIC_MODE) {
+    app.get('/api/dynamic/instances', (req, res) => {
+        const instances = dynamicManager.getAllInstances();
+        res.json({ 
+            mode: 'dynamic',
+            instances,
+            maxInstances: dynamicManager.maxInstances,
+            activeCount: instances.filter(i => i.status === 'running').length
+        });
+    });
+    
+    app.post('/api/dynamic/instances/:projectName/start', async (req, res) => {
+        try {
+            const instance = await dynamicManager.getOrCreateInstance(req.params.projectName);
+            res.json({ success: true, instance });
+        } catch (err) {
+            res.status(500).json({ error: err.message });
+        }
+    });
+    
+    app.post('/api/dynamic/instances/:projectName/stop', async (req, res) => {
+        try {
+            const instance = await dynamicManager.stopInstance(req.params.projectName);
+            res.json({ success: true, instance });
+        } catch (err) {
+            res.status(500).json({ error: err.message });
+        }
+    });
+    
+    app.delete('/api/dynamic/instances/:projectName', async (req, res) => {
+        try {
+            await dynamicManager.deleteInstance(req.params.projectName);
+            res.json({ success: true });
+        } catch (err) {
+            res.status(500).json({ error: err.message });
+        }
+    });
+}
+
 app.listen(PORT, '0.0.0.0', () => {
     console.log('');
     console.log('='.repeat(50));
@@ -678,27 +809,55 @@ app.listen(PORT, '0.0.0.0', () => {
     console.log('='.repeat(50));
     console.log(`  URL:       http://0.0.0.0:${PORT}`);
     console.log(`  Login:     ${DASHBOARD_USER} / ${'*'.repeat(DASHBOARD_PASS.length)}`);
-    console.log(`  Instances: ${INSTANCE_COUNT}`);
-    if (EXTERNAL_PORT_PREFIX > 0) {
-        console.log(`  Port Prefix: ${EXTERNAL_PORT_PREFIX} (external = ${EXTERNAL_PORT_PREFIX}xxxx)`);
+    
+    if (DYNAMIC_MODE) {
+        console.log(`  Mode:      DYNAMIC`);
+        console.log(`  Max Instances: ${dynamicManager.maxInstances}`);
+        console.log(`  Idle Timeout:  ${dynamicManager.idleTimeout / 60000} minutes`);
+        console.log(`  Gateway:   ws://0.0.0.0:${process.env.CDP_GATEWAY_PORT || 9222}/project-name/`);
+    } else {
+        console.log(`  Mode:      STATIC`);
+        console.log(`  Instances: ${INSTANCE_COUNT}`);
+        if (EXTERNAL_PORT_PREFIX > 0) {
+            console.log(`  Port Prefix: ${EXTERNAL_PORT_PREFIX} (external = ${EXTERNAL_PORT_PREFIX}xxxx)`);
+        }
+        console.log(`  CDP Ports: ${toExternalPort(BASE_CDP_PORT)}-${toExternalPort(BASE_CDP_PORT + INSTANCE_COUNT - 1)}`);
+        console.log(`  VNC Ports: ${toExternalPort(BASE_VNC_PORT)}-${toExternalPort(BASE_VNC_PORT + INSTANCE_COUNT - 1)}`);
+        console.log(`  WS Ports:  ${toExternalPort(BASE_WS_PORT)}-${toExternalPort(BASE_WS_PORT + INSTANCE_COUNT - 1)}`);
     }
-    console.log(`  CDP Ports: ${toExternalPort(BASE_CDP_PORT)}-${toExternalPort(BASE_CDP_PORT + INSTANCE_COUNT - 1)}`);
-    console.log(`  VNC Ports: ${toExternalPort(BASE_VNC_PORT)}-${toExternalPort(BASE_VNC_PORT + INSTANCE_COUNT - 1)}`);
-    console.log(`  WS Ports:  ${toExternalPort(BASE_WS_PORT)}-${toExternalPort(BASE_WS_PORT + INSTANCE_COUNT - 1)}`);
+    
     console.log('='.repeat(50));
     console.log('');
     
-    setTimeout(startAllWebsockify, 2000);
+    if (!DYNAMIC_MODE) {
+        setTimeout(startAllWebsockify, 2000);
+    }
 });
 
-process.on('SIGTERM', () => {
+process.on('SIGTERM', async () => {
     console.log('[Dashboard] Shutting down...');
     websockifyProcesses.forEach(p => { try { p.kill(); } catch {} });
+    
+    if (DYNAMIC_MODE && dynamicManager) {
+        await dynamicManager.shutdown();
+    }
+    if (DYNAMIC_MODE && wsGateway) {
+        await wsGateway.shutdown();
+    }
+    
     process.exit(0);
 });
 
-process.on('SIGINT', () => {
+process.on('SIGINT', async () => {
     console.log('[Dashboard] Interrupted...');
     websockifyProcesses.forEach(p => { try { p.kill(); } catch {} });
+    
+    if (DYNAMIC_MODE && dynamicManager) {
+        await dynamicManager.shutdown();
+    }
+    if (DYNAMIC_MODE && wsGateway) {
+        await wsGateway.shutdown();
+    }
+    
     process.exit(0);
 });
