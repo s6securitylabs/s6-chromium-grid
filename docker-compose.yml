@@ -20,6 +20,7 @@ services:
       - DASHBOARD_PORT=${DASHBOARD_PORT:-8080}
       - DASHBOARD_USER=${DASHBOARD_USER:-admin}
       - DASHBOARD_PASS=${DASHBOARD_PASS:-changeme}
+      - EXTERNAL_PORT_PREFIX=${EXTERNAL_PORT_PREFIX:-0}
     ports:
       - "8080:8080"
       - "9222:9222"
