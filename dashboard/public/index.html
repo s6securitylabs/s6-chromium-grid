@@ -22,6 +22,14 @@
         }
         .logo { display: flex; align-items: center; gap: 0.75rem; }
         h1 { font-size: 1.5rem; font-weight: 600; }
+        .version-badge {
+            background: #334155;
+            color: #94a3b8;
+            padding: 0.2rem 0.5rem;
+            border-radius: 0.25rem;
+            font-size: 0.7rem;
+            font-weight: 500;
+        }
         .status-badge {
             padding: 0.25rem 0.75rem;
             border-radius: 9999px;
@@ -261,6 +269,89 @@
         }
         
         .loading { opacity: 0.6; pointer-events: none; }
+        
+        .logs-btn {
+            background: #059669;
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 0.375rem;
+            cursor: pointer;
+            font-weight: 500;
+        }
+        .logs-btn:hover { background: #047857; }
+        
+        .logs-modal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(0,0,0,0.85);
+            z-index: 1500;
+            align-items: center;
+            justify-content: center;
+        }
+        .logs-modal.active { display: flex; }
+        .logs-content {
+            background: #1e293b;
+            border-radius: 0.75rem;
+            width: 95%;
+            height: 90%;
+            max-width: 1200px;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        .logs-header {
+            padding: 1rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #334155;
+            flex-shrink: 0;
+        }
+        .logs-header-left { display: flex; align-items: center; gap: 1rem; }
+        .logs-select {
+            background: #334155;
+            color: #e2e8f0;
+            border: 1px solid #475569;
+            padding: 0.5rem 1rem;
+            border-radius: 0.375rem;
+            font-size: 0.9rem;
+        }
+        .logs-body {
+            flex: 1;
+            overflow: auto;
+            padding: 1rem;
+            background: #0f172a;
+        }
+        .logs-output {
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            font-size: 0.8rem;
+            line-height: 1.5;
+            color: #a5f3fc;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+        .logs-footer {
+            padding: 0.75rem 1rem;
+            border-top: 1px solid #334155;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.8rem;
+            color: #64748b;
+            flex-shrink: 0;
+        }
+        .logs-footer-actions { display: flex; gap: 0.5rem; }
+        .auto-refresh-toggle {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            cursor: pointer;
+        }
+        .auto-refresh-toggle input { cursor: pointer; }
+        
         .toast {
             position: fixed;
             bottom: 2rem;
@@ -281,9 +372,11 @@
     <header>
         <div class="logo">
             <h1>S6 Chromium Grid</h1>
+            <span class="version-badge">v1.2.2</span>
         </div>
         <div class="header-actions">
             <span id="overall-status" class="status-badge">Loading...</span>
+            <button class="logs-btn" onclick="openLogs()">Logs</button>
             <button class="view-all-btn" onclick="openMultiView()">View All</button>
             <button class="refresh-btn" onclick="loadStatus()">Refresh</button>
         </div>
@@ -305,6 +398,34 @@
         </div>
     </div>
     
+    <div id="logs-modal" class="logs-modal">
+        <div class="logs-content">
+            <div class="logs-header">
+                <div class="logs-header-left">
+                    <h2>Logs</h2>
+                    <select id="logs-select" class="logs-select" onchange="loadLogFile()">
+                        <option value="">Select log file...</option>
+                    </select>
+                </div>
+                <button class="close-btn" onclick="closeLogs()">Close</button>
+            </div>
+            <div class="logs-body">
+                <pre id="logs-output" class="logs-output">Select a log file to view...</pre>
+            </div>
+            <div class="logs-footer">
+                <span id="logs-info"></span>
+                <div class="logs-footer-actions">
+                    <label class="auto-refresh-toggle">
+                        <input type="checkbox" id="logs-auto-refresh" onchange="toggleLogsAutoRefresh()">
+                        Auto-refresh
+                    </label>
+                    <button class="btn btn-secondary" onclick="loadLogFile()">Refresh</button>
+                    <button class="btn btn-secondary" onclick="scrollLogsToBottom()">Scroll to Bottom</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <div id="multi-view" class="multi-view">
         <div class="multi-view-header">
             <div style="display: flex; align-items: center;">
@@ -509,6 +630,7 @@
             if (e.key === 'Escape') {
                 closeModal();
                 closeMultiView();
+                closeLogs();
             }
             if ((e.key === 'm' || e.key === 'M') && !e.ctrlKey && !e.metaKey) {
                 const multiView = document.getElementById('multi-view');
@@ -518,7 +640,120 @@
                     openMultiView();
                 }
             }
+            if ((e.key === 'l' || e.key === 'L') && !e.ctrlKey && !e.metaKey) {
+                const logsModal = document.getElementById('logs-modal');
+                if (logsModal.classList.contains('active')) {
+                    closeLogs();
+                } else {
+                    openLogs();
+                }
+            }
         });
+        
+        let logsAutoRefreshInterval = null;
+        
+        async function openLogs() {
+            const modal = document.getElementById('logs-modal');
+            modal.classList.add('active');
+            await loadLogsList();
+        }
+        
+        function closeLogs() {
+            const modal = document.getElementById('logs-modal');
+            modal.classList.remove('active');
+            stopLogsAutoRefresh();
+        }
+        
+        async function loadLogsList() {
+            const select = document.getElementById('logs-select');
+            try {
+                const res = await fetch('/api/logs');
+                const data = await res.json();
+                
+                const currentValue = select.value;
+                select.innerHTML = '<option value="">Select log file...</option>';
+                
+                if (data.logs && data.logs.length > 0) {
+                    data.logs.forEach(log => {
+                        const opt = document.createElement('option');
+                        opt.value = log.name;
+                        const sizeKb = (log.size / 1024).toFixed(1);
+                        opt.textContent = `${log.name} (${sizeKb} KB)`;
+                        select.appendChild(opt);
+                    });
+                    
+                    if (currentValue) {
+                        select.value = currentValue;
+                    } else if (data.logs.length > 0) {
+                        select.value = 'entrypoint.log';
+                        if (!select.value) select.value = data.logs[0].name;
+                        loadLogFile();
+                    }
+                }
+            } catch (err) {
+                showToast('Failed to load logs list', 'error');
+            }
+        }
+        
+        async function loadLogFile() {
+            const select = document.getElementById('logs-select');
+            const output = document.getElementById('logs-output');
+            const info = document.getElementById('logs-info');
+            
+            const fileName = select.value;
+            if (!fileName) {
+                output.textContent = 'Select a log file to view...';
+                info.textContent = '';
+                return;
+            }
+            
+            try {
+                const res = await fetch(`/api/logs/${encodeURIComponent(fileName)}?lines=1000`);
+                const data = await res.json();
+                
+                if (data.error) {
+                    output.textContent = `Error: ${data.error}`;
+                    info.textContent = '';
+                } else {
+                    output.textContent = data.lines || '(empty)';
+                    info.textContent = `${data.totalLines} lines${data.truncated ? ' (showing last 1000)' : ''}`;
+                }
+            } catch (err) {
+                output.textContent = `Failed to load log: ${err.message}`;
+                info.textContent = '';
+            }
+        }
+        
+        function scrollLogsToBottom() {
+            const body = document.querySelector('.logs-body');
+            body.scrollTop = body.scrollHeight;
+        }
+        
+        function toggleLogsAutoRefresh() {
+            const checkbox = document.getElementById('logs-auto-refresh');
+            if (checkbox.checked) {
+                startLogsAutoRefresh();
+            } else {
+                stopLogsAutoRefresh();
+            }
+        }
+        
+        function startLogsAutoRefresh() {
+            stopLogsAutoRefresh();
+            logsAutoRefreshInterval = setInterval(() => {
+                loadLogFile();
+                scrollLogsToBottom();
+            }, 2000);
+        }
+        
+        function stopLogsAutoRefresh() {
+            if (logsAutoRefreshInterval) {
+                clearInterval(logsAutoRefreshInterval);
+                logsAutoRefreshInterval = null;
+            }
+            const checkbox = document.getElementById('logs-auto-refresh');
+            if (checkbox) checkbox.checked = false;
+        }
         
         loadStatus();
         refreshInterval = setInterval(loadStatus, 10000);

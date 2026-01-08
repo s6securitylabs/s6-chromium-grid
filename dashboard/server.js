@@ -3,6 +3,7 @@ const basicAuth = require('express-basic-auth');
 const http = require('http');
 const net = require('net');
 const path = require('path');
+const fs = require('fs');
 const { spawn, exec } = require('child_process');
 
 const app = express();
@@ -45,7 +46,7 @@ function runCommand(cmd) {
 async function checkCDP(port) {
     return new Promise((resolve) => {
         const req = http.request({
-            hostname: 'localhost',
+            hostname: '127.0.0.1',
             port,
             path: '/json/version',
             method: 'GET',
@@ -69,7 +70,7 @@ async function checkCDP(port) {
 
 async function checkVNC(port) {
     return new Promise((resolve) => {
-        const socket = net.createConnection({ port, host: 'localhost', timeout: 1000 });
+        const socket = net.createConnection({ port, host: '127.0.0.1', timeout: 1000 });
         socket.on('connect', () => { socket.destroy(); resolve(true); });
         socket.on('error', () => resolve(false));
         socket.on('timeout', () => { socket.destroy(); resolve(false); });
@@ -114,6 +115,65 @@ app.get('/api/status', async (req, res) => {
 
 app.get('/api/health', (req, res) => {
     res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
+// Logs API
+const LOG_DIR = process.env.LOG_DIR || '/var/log/s6-grid';
+
+app.get('/api/logs', async (req, res) => {
+    try {
+        const files = await fs.promises.readdir(LOG_DIR);
+        const logFiles = files.filter(f => f.endsWith('.log'));
+        const stats = await Promise.all(
+            logFiles.map(async (file) => {
+                const stat = await fs.promises.stat(path.join(LOG_DIR, file));
+                return {
+                    name: file,
+                    size: stat.size,
+                    modified: stat.mtime.toISOString()
+                };
+            })
+        );
+        res.json({ logs: stats.sort((a, b) => a.name.localeCompare(b.name)) });
+    } catch (err) {
+        if (err.code === 'ENOENT') {
+            res.json({ logs: [], error: 'Log directory not found' });
+        } else {
+            res.status(500).json({ error: err.message });
+        }
+    }
+});
+
+app.get('/api/logs/:name', async (req, res) => {
+    const fileName = req.params.name;
+    
+    // Security: only allow .log files, no path traversal
+    if (!fileName.endsWith('.log') || fileName.includes('/') || fileName.includes('..')) {
+        return res.status(400).json({ error: 'Invalid log file name' });
+    }
+    
+    const filePath = path.join(LOG_DIR, fileName);
+    const lines = parseInt(req.query.lines) || 500;
+    const follow = req.query.follow === 'true';
+    
+    try {
+        const content = await fs.promises.readFile(filePath, 'utf8');
+        const allLines = content.split('\n');
+        const lastLines = allLines.slice(-lines).join('\n');
+        
+        res.json({
+            name: fileName,
+            lines: lastLines,
+            totalLines: allLines.length,
+            truncated: allLines.length > lines
+        });
+    } catch (err) {
+        if (err.code === 'ENOENT') {
+            res.status(404).json({ error: 'Log file not found' });
+        } else {
+            res.status(500).json({ error: err.message });
+        }
+    }
 });
 
 app.post('/api/instance/:id/restart', async (req, res) => {

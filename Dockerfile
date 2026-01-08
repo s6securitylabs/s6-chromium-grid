@@ -40,6 +40,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     python3-numpy \
     curl \
     unzip \
+    socat \
     && rm -rf /var/lib/apt/lists/* \
     && sed -i '/en_US.UTF-8/s/^# //g' /etc/locale.gen \
     && locale-gen
