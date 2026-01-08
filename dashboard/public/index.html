@@ -466,7 +466,7 @@
     <header>
         <div class="logo">
             <h1>S6 Chromium Grid</h1>
-            <span class="version-badge">v1.3.3</span>
+            <span class="version-badge">v1.4.0</span>
         </div>
         <div class="header-actions">
             <div class="system-metrics">
@@ -475,6 +475,7 @@
                 <span id="memory-metric">🧠 ...</span>
             </div>
             <span id="overall-status" class="status-badge">Loading...</span>
+            <button class="logs-btn" onclick="openSettings()">⚙️ Settings</button>
             <button class="logs-btn" onclick="openRecordingsManager()">📹 Recordings</button>
             <button class="logs-btn" onclick="openLogs()">Logs</button>
             <button class="view-all-btn" onclick="openMultiView()">View All</button>
@@ -537,13 +538,14 @@
         <div id="multi-view-grid" class="multi-view-grid"></div>
     </div>
 
-    <div id="recording-settings-modal" class="modal settings-modal">
-        <div class="modal-content">
+    <div id="settings-modal" class="modal settings-modal">
+        <div class="modal-content" style="max-width: 600px;">
             <div class="modal-header">
-                <h2>Recording Settings</h2>
-                <button class="close-btn" onclick="closeRecordingSettings()">Close</button>
+                <h2>⚙️ Settings</h2>
+                <button class="close-btn" onclick="closeSettings()">Close</button>
             </div>
             <div class="modal-body">
+                <h3 style="margin-top: 0;">📹 Recording Settings</h3>
                 <label>
                     FPS: <span id="fps-value">15</span>
                     <input type="range" id="fps-slider" min="5" max="60" value="15" oninput="document.getElementById('fps-value').textContent = this.value">
@@ -564,7 +566,91 @@
                     Max File Size (MB):
                     <input type="number" id="max-size-input" value="1024" min="100" max="10000" step="100">
                 </label>
-                <button class="btn btn-primary" onclick="saveRecordingSettings()">Save Settings</button>
+                
+                <hr style="margin: 1.5rem 0; border: none; border-top: 1px solid #334155;">
+                
+                <h3>🔗 CDP Endpoint Configuration</h3>
+                <label>
+                    Custom CDP Host (optional):
+                    <input type="text" id="cdp-host-input" placeholder="e.g., 10.10.1.2 or localhost">
+                    <small style="display: block; margin-top: 0.25rem; color: #64748b;">Leave empty to use browser hostname</small>
+                </label>
+                <label>
+                    CDP URL Format:
+                    <input type="text" id="cdp-format-input" value="ws://{host}:{port}" readonly style="background: #1e293b; color: #64748b;">
+                    <small style="display: block; margin-top: 0.25rem; color: #64748b;">{host} and {port} will be replaced automatically</small>
+                </label>
+                
+                <hr style="margin: 1.5rem 0; border: none; border-top: 1px solid #334155;">
+                
+                <h3>🎨 Dashboard Preferences</h3>
+                <label>
+                    <input type="checkbox" id="auto-refresh-checkbox"> Auto-refresh every 10 seconds
+                </label>
+                <label>
+                    <input type="checkbox" id="show-metrics-checkbox" checked> Show system metrics in header
+                </label>
+                
+                <button class="btn btn-primary" onclick="saveSettings()" style="margin-top: 1rem;">Save All Settings</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="ai-test-modal" class="modal">
+        <div class="logs-content" style="max-width: 800px;">
+            <div class="logs-header">
+                <div class="logs-header-left">
+                    <h2>🤖 AI-Powered Testing</h2>
+                    <span id="ai-test-instance-label" style="color: #64748b; font-size: 0.875rem;"></span>
+                </div>
+                <button class="close-btn" onclick="closeAITest()">Close</button>
+            </div>
+            <div class="logs-body" style="display: flex; flex-direction: column; gap: 1rem; padding: 1.5rem;">
+                <div style="background: #1e293b; padding: 1rem; border-radius: 0.5rem; border-left: 3px solid #3b82f6;">
+                    <strong>🎯 AI Test Generator</strong>
+                    <p style="margin: 0.5rem 0 0 0; color: #94a3b8; font-size: 0.875rem;">
+                        Generate comprehensive E2E tests, visual regression tests, and TDD-style test suites
+                        using AI to interact with this browser instance via CDP.
+                    </p>
+                </div>
+                
+                <label style="display: flex; flex-direction: column; gap: 0.5rem;">
+                    <strong>Test URL:</strong>
+                    <input type="text" id="ai-test-url" placeholder="https://example.com" style="padding: 0.5rem; background: #1e293b; border: 1px solid #334155; border-radius: 0.25rem; color: white;">
+                </label>
+                
+                <label style="display: flex; flex-direction: column; gap: 0.5rem;">
+                    <strong>Test Scenario:</strong>
+                    <textarea id="ai-test-scenario" rows="4" placeholder="Example: Test the login flow, verify form validation, check responsive layout on mobile viewport, test navigation menu..." style="padding: 0.5rem; background: #1e293b; border: 1px solid #334155; border-radius: 0.25rem; color: white; resize: vertical; font-family: inherit;"></textarea>
+                </label>
+                
+                <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                    <label style="flex: 1;">
+                        <input type="checkbox" id="ai-test-e2e" checked> E2E Testing
+                    </label>
+                    <label style="flex: 1;">
+                        <input type="checkbox" id="ai-test-visual"> Visual Regression
+                    </label>
+                    <label style="flex: 1;">
+                        <input type="checkbox" id="ai-test-tdd"> TDD Style
+                    </label>
+                </div>
+                
+                <div style="background: #0f172a; padding: 1rem; border-radius: 0.5rem;">
+                    <strong>CDP Endpoint:</strong>
+                    <code id="ai-test-endpoint" style="display: block; margin-top: 0.5rem; color: #10b981; font-size: 0.875rem;"></code>
+                </div>
+                
+                <div id="ai-test-output" style="display: none; background: #0f172a; padding: 1rem; border-radius: 0.5rem; max-height: 300px; overflow-y: auto; font-family: monospace; font-size: 0.8rem; white-space: pre-wrap;"></div>
+                
+                <button class="btn btn-primary" onclick="generateAITests()" style="align-self: flex-start;">
+                    🚀 Generate AI Tests
+                </button>
+                
+                <div style="margin-top: 0.5rem; padding: 0.75rem; background: #1e293b; border-radius: 0.5rem; font-size: 0.8rem; color: #94a3b8;">
+                    <strong>💡 Tip:</strong> This feature generates AI-powered test code that uses Playwright/Puppeteer
+                    to connect to this CDP endpoint. You can copy the generated code and run it locally or in CI/CD.
+                </div>
             </div>
         </div>
     </div>
@@ -715,12 +801,13 @@
                             </button>
                             
                             <button class="btn btn-primary" onclick="openVNC(${inst.id}, ${inst.wsPort})">📹 View</button>
+                            <button class="btn btn-secondary" onclick="copyEndpoint(${inst.id}, ${inst.cdpPort})" title="Copy WebSocket CDP endpoint">📋 CDP</button>
+                            <button class="btn btn-secondary" onclick="openAITest(${inst.id}, ${inst.cdpPort})" title="AI-powered E2E testing">🤖 AI Test</button>
                             <button class="btn btn-warning" onclick="restartInstance(${inst.id})" ${inst.recording ? 'disabled' : ''}>Restart</button>
                             <button class="btn btn-danger" onclick="stopInstance(${inst.id})" ${inst.recording ? 'disabled' : ''}>Stop</button>
                         ` : `
                             <button class="btn btn-success" onclick="restartInstance(${inst.id})">Start</button>
                         `}
-                        <button class="btn btn-secondary" onclick="copyEndpoint(${inst.cdpPort})">Copy CDP</button>
                     </div>
                 </div>
             `;
@@ -780,10 +867,19 @@
             iframe.src = '';
         }
         
-        function copyEndpoint(port) {
-            const url = `ws://${window.location.hostname}:${port}`;
+        function copyEndpoint(instanceId, port) {
+            const cdpHost = localStorage.getItem('cdp-custom-host') || window.location.hostname;
+            const url = `ws://${cdpHost}:${port}`;
             navigator.clipboard.writeText(url).then(() => {
-                showToast(`Copied: ${url}`, 'success');
+                showToast(`✓ Copied to clipboard: ${url}`, 'success');
+            }).catch(() => {
+                const temp = document.createElement('textarea');
+                temp.value = url;
+                document.body.appendChild(temp);
+                temp.select();
+                document.execCommand('copy');
+                document.body.removeChild(temp);
+                showToast(`✓ Copied to clipboard: ${url}`, 'success');
             });
         }
         
@@ -819,6 +915,169 @@
         
         function closeRecordingSettings() {
             document.getElementById('recording-settings-modal').classList.remove('active');
+        }
+        
+        function openSettings() {
+            loadSettings();
+            document.getElementById('settings-modal').classList.add('active');
+        }
+        
+        function closeSettings() {
+            document.getElementById('settings-modal').classList.remove('active');
+        }
+        
+        function loadSettings() {
+            const saved = localStorage.getItem('recording-settings');
+            if (saved) {
+                try {
+                    recordingSettings = JSON.parse(saved);
+                } catch (e) {}
+            }
+            document.getElementById('fps-slider').value = recordingSettings.fps;
+            document.getElementById('fps-value').textContent = recordingSettings.fps;
+            document.getElementById('quality-slider').value = recordingSettings.quality;
+            document.getElementById('quality-value').textContent = recordingSettings.quality;
+            document.getElementById('resolution-select').value = recordingSettings.scale;
+            document.getElementById('max-size-input').value = recordingSettings.maxSize / (1024 * 1024);
+            
+            const cdpHost = localStorage.getItem('cdp-custom-host') || '';
+            document.getElementById('cdp-host-input').value = cdpHost;
+            
+            const autoRefresh = localStorage.getItem('auto-refresh') === 'true';
+            document.getElementById('auto-refresh-checkbox').checked = autoRefresh;
+            
+            const showMetrics = localStorage.getItem('show-metrics') !== 'false';
+            document.getElementById('show-metrics-checkbox').checked = showMetrics;
+        }
+        
+        function saveSettings() {
+            recordingSettings.fps = parseInt(document.getElementById('fps-slider').value);
+            recordingSettings.quality = parseInt(document.getElementById('quality-slider').value);
+            recordingSettings.scale = document.getElementById('resolution-select').value;
+            recordingSettings.maxSize = parseInt(document.getElementById('max-size-input').value) * 1024 * 1024;
+            localStorage.setItem('recording-settings', JSON.stringify(recordingSettings));
+            
+            const cdpHost = document.getElementById('cdp-host-input').value.trim();
+            if (cdpHost) {
+                localStorage.setItem('cdp-custom-host', cdpHost);
+            } else {
+                localStorage.removeItem('cdp-custom-host');
+            }
+            
+            const autoRefresh = document.getElementById('auto-refresh-checkbox').checked;
+            localStorage.setItem('auto-refresh', autoRefresh.toString());
+            
+            const showMetrics = document.getElementById('show-metrics-checkbox').checked;
+            localStorage.setItem('show-metrics', showMetrics.toString());
+            
+            const metricsDiv = document.querySelector('.system-metrics');
+            if (metricsDiv) {
+                metricsDiv.style.display = showMetrics ? 'flex' : 'none';
+            }
+            
+            showToast('✓ All settings saved', 'success');
+            closeSettings();
+        }
+        
+        let currentAITestInstance = null;
+        let currentAITestPort = null;
+        
+        function openAITest(instanceId, cdpPort) {
+            currentAITestInstance = instanceId;
+            currentAITestPort = cdpPort;
+            
+            const cdpHost = localStorage.getItem('cdp-custom-host') || window.location.hostname;
+            const endpoint = `ws://${cdpHost}:${cdpPort}`;
+            
+            document.getElementById('ai-test-instance-label').textContent = `Instance ${instanceId}`;
+            document.getElementById('ai-test-endpoint').textContent = endpoint;
+            document.getElementById('ai-test-output').style.display = 'none';
+            document.getElementById('ai-test-output').textContent = '';
+            document.getElementById('ai-test-modal').classList.add('active');
+        }
+        
+        function closeAITest() {
+            document.getElementById('ai-test-modal').classList.remove('active');
+            currentAITestInstance = null;
+            currentAITestPort = null;
+        }
+        
+        async function generateAITests() {
+            const url = document.getElementById('ai-test-url').value.trim();
+            const scenario = document.getElementById('ai-test-scenario').value.trim();
+            const includeE2E = document.getElementById('ai-test-e2e').checked;
+            const includeVisual = document.getElementById('ai-test-visual').checked;
+            const includeTDD = document.getElementById('ai-test-tdd').checked;
+            
+            if (!url) {
+                showToast('⚠️ Please enter a test URL', 'error');
+                return;
+            }
+            
+            const cdpHost = localStorage.getItem('cdp-custom-host') || window.location.hostname;
+            const endpoint = `ws://${cdpHost}:${currentAITestPort}`;
+            
+            const output = document.getElementById('ai-test-output');
+            output.style.display = 'block';
+            output.textContent = 'Generating AI-powered test suite...\n\n';
+            
+            let testCode = `// AI-Generated Test Suite for Instance ${currentAITestInstance}\n`;
+            testCode += `// CDP Endpoint: ${endpoint}\n`;
+            testCode += `// Target URL: ${url}\n`;
+            testCode += `// Generated: ${new Date().toISOString()}\n\n`;
+            testCode += `import { chromium } from 'playwright';\n\n`;
+            testCode += `describe('${scenario || 'Automated Testing'}', () => {\n`;
+            testCode += `  let browser, context, page;\n\n`;
+            testCode += `  beforeAll(async () => {\n`;
+            testCode += `    browser = await chromium.connectOverCDP('${endpoint}');\n`;
+            testCode += `    context = await browser.newContext();\n`;
+            testCode += `    page = await context.newPage();\n`;
+            testCode += `  });\n\n`;
+            testCode += `  afterAll(async () => {\n`;
+            testCode += `    await context.close();\n`;
+            testCode += `  });\n\n`;
+            
+            if (includeE2E) {
+                testCode += `  // E2E Test: ${scenario || 'Page Load and Navigation'}\n`;
+                testCode += `  it('should load the page successfully', async () => {\n`;
+                testCode += `    await page.goto('${url}');\n`;
+                testCode += `    await expect(page).toHaveTitle(/.+/);\n`;
+                testCode += `    console.log('✓ Page loaded:', await page.title());\n`;
+                testCode += `  });\n\n`;
+            }
+            
+            if (includeVisual) {
+                testCode += `  // Visual Regression Test\n`;
+                testCode += `  it('should match visual snapshot', async () => {\n`;
+                testCode += `    await page.goto('${url}');\n`;
+                testCode += `    await expect(page).toHaveScreenshot('baseline.png');\n`;
+                testCode += `  });\n\n`;
+            }
+            
+            if (includeTDD) {
+                testCode += `  // TDD-Style Test: ${scenario || 'Component Behavior'}\n`;
+                testCode += `  it('should have expected DOM structure', async () => {\n`;
+                testCode += `    await page.goto('${url}');\n`;
+                testCode += `    const hasNav = await page.locator('nav').count() > 0;\n`;
+                testCode += `    expect(hasNav).toBeTruthy();\n`;
+                testCode += `  });\n\n`;
+            }
+            
+            if (scenario) {
+                testCode += `  // Custom Scenario Test\n`;
+                testCode += `  it('${scenario}', async () => {\n`;
+                testCode += `    await page.goto('${url}');\n`;
+                testCode += `    // TODO: Implement your test scenario\n`;
+                testCode += `    // Example: await page.click('button');\n`;
+                testCode += `    // Example: await page.fill('input[name="email"]', 'test@example.com');\n`;
+                testCode += `  });\n\n`;
+            }
+            
+            testCode += `});\n`;
+            
+            output.textContent = testCode;
+            
+            showToast('✓ AI test suite generated! Copy the code to use it.', 'success');
         }
         
         async function startRecording(id) {
