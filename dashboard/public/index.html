@@ -890,11 +890,20 @@
         };
 
         // Helper function to get VNC URL
+        // Now uses NGINX WebSocket proxy path instead of direct port connection
         function getVncUrl(wsPort) {
+            // Calculate instance ID from websockify port (6080 = instance 0, 6081 = instance 1, etc.)
+            const instanceId = wsPort - 6080;
+
+            // Use protocol-relative URL to match current page protocol (http/https)
             const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-            const host = window.location.hostname;
-            const port = window.location.port ? ':' + window.location.port : '';
-            return `/novnc/vnc.html?host=${host}&port=${wsPort}&autoconnect=true`;
+            const host = window.location.host; // includes port if present
+
+            // Path-based WebSocket routing through NGINX
+            const wsPath = `${protocol}//${host}/websockify/${instanceId}/websockify`;
+
+            // noVNC URL with WebSocket path
+            return `/novnc/vnc.html?path=${encodeURIComponent(wsPath)}&autoconnect=true&resize=scale`;
         }
 
         async function loadStatus() {

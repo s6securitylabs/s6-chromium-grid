@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>S6 Chromium Grid</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600&family=Montserrat:wght@300;400;500;600&display=swap" rel="stylesheet">
+
+    <!-- React and ReactDOM from CDN -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <!-- Babel Standalone for JSX -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <link rel="stylesheet" href="/dashboard-styles.css">
+</head>
+<body>
+    <div id="root"></div>
+
+    <!-- React Application -->
+    <script type="text/babel">
+        const { useState, useEffect, useCallback } = React;
+
+        // API helper
+        const api = {
+            async fetchStatus() {
+                const res = await fetch('/api/status');
+                if (!res.ok) throw new Error('Failed to fetch status');
+                return res.json();
+            },
+            async restartInstance(id) {
+                const res = await fetch(`/api/restart/${id}`, { method: 'POST' });
+                return res.ok;
+            },
+            async stopInstance(id) {
+                const res = await fetch(`/api/stop/${id}`, { method: 'POST' });
+                return res.ok;
+            },
+            async startRecording(id) {
+                const res = await fetch(`/api/record/start/${id}`, { method: 'POST' });
+                return res.ok;
+            },
+            async stopRecording(id) {
+                const res = await fetch(`/api/record/stop/${id}`, { method: 'POST' });
+                return res.ok;
+            },
+            async toggleGPU(id) {
+                const res = await fetch(`/api/gpu/toggle/${id}`, { method: 'POST' });
+                return res.ok;
+            },
+            async renameInstance(id, name) {
+                const res = await fetch(`/api/rename/${id}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name })
+                });
+                return res.ok;
+            }
+        };
+
+        // Utility functions
+        const utils = {
+            copyToClipboard(text) {
+                navigator.clipboard.writeText(text).then(() => {
+                    alert('Copied to clipboard!');
+                }).catch(err => {
+                    console.error('Failed to copy:', err);
+                });
+            },
+            getCDPEndpoint(inst, externalPortPrefix) {
+                const hostname = window.location.hostname;
+                const port = externalPortPrefix === 0 ? inst.cdpPort : (externalPortPrefix * 10000 + inst.cdpPort);
+                return inst.webSocketDebuggerUrl ?
+                    inst.webSocketDebuggerUrl.replace('127.0.0.1', hostname).replace(inst.cdpPort, port) :
+                    `ws://${hostname}:${port}`;
+            }
+        };
+
+        // Header Component
+        function Header({ status, onRefresh, onOpenSettings, onOpenLogs, onOpenRecordings, onViewAll }) {
+            const statusBadgeClass = status.running === status.total ? 'running' :
+                                    status.running > 0 ? 'partial' : 'offline';
+            const statusText = `${status.running}/${status.total} Running`;
+
+            return (
+                <header>
+                    <div className="logo">
+                        <svg className="s6-logo-svg" viewBox="0 0 100 50" xmlns="http://www.w3.org/2000/svg">
+                            <defs>
+                                <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%">
+                                    <stop offset="0%" style={{stopColor: '#60a5fa', stopOpacity: 1}} />
+                                    <stop offset="100%" style={{stopColor: '#3b82f6', stopOpacity: 1}} />
+                                </linearGradient>
+                            </defs>
+                            <g transform="translate(5, 10)">
+                                <text fontFamily="'Barlow Condensed', sans-serif" fontWeight="600" fontSize="50" letterSpacing="2" fill="url(#grad)">S6</text>
+                                <text fontFamily="'Montserrat', sans-serif" fontWeight="300" fontSize="35" letterSpacing="4" fill="#fff">SECURITY</text>
+                                <text fontFamily="'Montserrat', sans-serif" fontWeight="600" fontSize="14" letterSpacing="8" y="30" fill="#888">LABS</text>
+                            </g>
+                        </svg>
+                        <span style={{color: '#888', fontWeight: 300, fontSize: '1.2rem', marginLeft: '0.5rem'}}>Chromium Grid</span>
+                        <span className="version-badge">v2.2.3</span>
+                    </div>
+                    <div className="header-actions">
+                        <div className="system-metrics">
+                            <span id="disk-metric" title="Disk Usage">💿 ...</span>
+                            <span id="cpu-metric" title="CPU Usage">📊 ...</span>
+                            <span id="memory-metric" title="RAM Usage">🗄️ ...</span>
+                        </div>
+                        <div>
+                            <span id="overall-status" className={`status-badge ${statusBadgeClass}`}>{statusText}</span>
+                        </div>
+                        <div>
+                            <button className="logs-btn" onClick={onOpenSettings}>⚙️ Settings</button>
+                            <button className="logs-btn" onClick={onOpenRecordings}>📹 Recordings</button>
+                            <button className="logs-btn" onClick={onOpenLogs}>Logs</button>
+                            <button className="view-all-btn" onClick={onViewAll}>View All</button>
+                            <button className="refresh-btn" onClick={onRefresh}>Refresh</button>
+                        </div>
+                    </div>
+                </header>
+            );
+        }
+
+        // Instance Card Component
+        function InstanceCard({ instance, onAction, externalPortPrefix }) {
+            const handleCopyCDP = () => {
+                const endpoint = utils.getCDPEndpoint(instance, externalPortPrefix);
+                utils.copyToClipboard(endpoint);
+            };
+
+            const handleCopyPrompt = () => {
+                const endpoint = utils.getCDPEndpoint(instance, externalPortPrefix);
+                const prompt = `Connect to Chrome instance ${instance.id} via CDP at ${endpoint} and run automated tests.`;
+                utils.copyToClipboard(prompt);
+            };
+
+            const handleRename = () => {
+                const newName = prompt('Enter new name for instance:', instance.customName || `Instance ${instance.id}`);
+                if (newName) {
+                    onAction('rename', instance.id, newName);
+                }
+            };
+
+            return (
+                <div className="card">
+                    <div className="card-header">
+                        <div className="card-title">
+                            <span className={`instance-status ${instance.status}`}></span>
+                            Instance {instance.id}
+                            {instance.customName && <span className="custom-name">({instance.customName})</span>}
+                            {instance.status === 'running' && (
+                                <span className="rename-icon" onClick={handleRename} title="Rename instance">✏️</span>
+                            )}
+                        </div>
+                        <span className={`status-badge ${instance.status}`}>
+                            {instance.status === 'running' ? 'Running' :
+                             instance.status === 'error' ? 'Error' : 'Offline'}
+                        </span>
+                    </div>
+
+                    <div className="vnc-preview" style={{background: '#0f172a', height: '200px', display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
+                        {instance.status === 'running' ? (
+                            <div style={{textAlign: 'center'}}>
+                                <div style={{fontSize: '3rem', marginBottom: '1rem'}}>🖥️</div>
+                                <div>Click "View" to see live browser</div>
+                            </div>
+                        ) : (
+                            <div style={{textAlign: 'center', color: '#64748b'}}>
+                                <div style={{fontSize: '2rem', marginBottom: '0.5rem'}}>⏸️</div>
+                                <div>Instance Offline</div>
+                            </div>
+                        )}
+                    </div>
+
+                    <div className="card-body">
+                        <div className="info-grid">
+                            <div><span className="info-label">CDP:</span> <span className="info-value">{instance.cdpPort}</span></div>
+                            <div><span className="info-label">VNC:</span> <span className="info-value">{instance.vncPort}</span></div>
+                            <div><span className="info-label">Browser:</span> <span className="info-value">{instance.browser || 'Not running'}</span></div>
+                            <div><span className="info-label">CPU:</span> <span className="info-value">{instance.gpuEnabled ? 'GPU' : 'Software'}</span></div>
+                            <div><span className="info-label">RAM:</span> <span className="info-value">~200MB</span></div>
+                            {instance.recording && (
+                                <div><span className="info-label">Recording:</span> <span className="info-value recording-indicator">● REC</span></div>
+                            )}
+                        </div>
+
+                        <div className="actions">
+                            {instance.status === 'running' && (
+                                <>
+                                    {instance.recording ? (
+                                        <button className="btn btn-danger btn-small" onClick={() => onAction('stopRecording', instance.id)}>⏹ Stop Rec</button>
+                                    ) : (
+                                        <button className="btn btn-success btn-small" onClick={() => onAction('startRecording', instance.id)}>⏺ Record</button>
+                                    )}
+                                    <button className="btn btn-secondary btn-small" onClick={() => onAction('toggleGPU', instance.id)}>🎮 Toggle GPU</button>
+                                </>
+                            )}
+                        </div>
+
+                        <div className="actions" style={{marginTop: '0.5rem'}}>
+                            {instance.status === 'running' ? (
+                                <>
+                                    <button className="btn btn-primary" onClick={() => onAction('openVNC', instance.id, instance.wsPort)}>📹 View</button>
+                                    <button className="btn btn-secondary" onClick={handleCopyCDP} title="Copy WebSocket CDP endpoint">📋 Copy CDP</button>
+                                    <button className="btn btn-secondary" onClick={handleCopyPrompt} title="Copy AI testing prompt">📋 Copy Prompt</button>
+                                    <button className="btn btn-warning" onClick={() => onAction('restart', instance.id)} disabled={instance.recording}>Restart</button>
+                                    <button className="btn btn-danger" onClick={() => onAction('stop', instance.id)} disabled={instance.recording}>Stop</button>
+                                </>
+                            ) : (
+                                <button className="btn btn-success" onClick={() => onAction('restart', instance.id)}>Start</button>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        // Main App Component
+        function App() {
+            const [status, setStatus] = useState({ instances: [], total: 0, running: 0, externalPortPrefix: 0 });
+            const [loading, setLoading] = useState(true);
+
+            const loadStatus = useCallback(async () => {
+                try {
+                    const data = await api.fetchStatus();
+                    setStatus(data);
+                    setLoading(false);
+                } catch (err) {
+                    console.error('Failed to load status:', err);
+                    setLoading(false);
+                }
+            }, []);
+
+            useEffect(() => {
+                loadStatus();
+                const interval = setInterval(loadStatus, 5000);
+                return () => clearInterval(interval);
+            }, [loadStatus]);
+
+            const handleAction = async (action, instanceId, param) => {
+                try {
+                    switch (action) {
+                        case 'restart':
+                            await api.restartInstance(instanceId);
+                            break;
+                        case 'stop':
+                            await api.stopInstance(instanceId);
+                            break;
+                        case 'startRecording':
+                            await api.startRecording(instanceId);
+                            break;
+                        case 'stopRecording':
+                            await api.stopRecording(instanceId);
+                            break;
+                        case 'toggleGPU':
+                            await api.toggleGPU(instanceId);
+                            break;
+                        case 'rename':
+                            await api.renameInstance(instanceId, param);
+                            break;
+                        case 'openVNC':
+                            window.open(`/vnc/${instanceId}`, '_blank');
+                            break;
+                    }
+                    setTimeout(loadStatus, 500);
+                } catch (err) {
+                    console.error(`Failed to ${action}:`, err);
+                    alert(`Failed to ${action}`);
+                }
+            };
+
+            if (loading) {
+                return (
+                    <div style={{display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh'}}>
+                        <div style={{textAlign: 'center'}}>
+                            <div style={{fontSize: '3rem'}}>⏳</div>
+                            <div>Loading...</div>
+                        </div>
+                    </div>
+                );
+            }
+
+            return (
+                <>
+                    <Header
+                        status={status}
+                        onRefresh={loadStatus}
+                        onOpenSettings={() => alert('Settings modal - to be implemented')}
+                        onOpenLogs={() => alert('Logs modal - to be implemented')}
+                        onOpenRecordings={() => alert('Recordings modal - to be implemented')}
+                        onViewAll={() => alert('View all - to be implemented')}
+                    />
+                    <main>
+                        <div className="grid">
+                            {status.instances.map(inst => (
+                                <InstanceCard
+                                    key={inst.id}
+                                    instance={inst}
+                                    onAction={handleAction}
+                                    externalPortPrefix={status.externalPortPrefix}
+                                />
+                            ))}
+                        </div>
+                    </main>
+                </>
+            );
+        }
+
+        // Render the app
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>

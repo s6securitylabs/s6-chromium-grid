@@ -3,7 +3,10 @@ version: '3.8'
 services:
   # S6 Chromium Grid Dashboard
   dashboard:
-    image: ghcr.io/s6securitylabs/s6-chromium-grid:2.2.0
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: s6-chromium-grid:2.2.3
     container_name: s6-chromium-grid
     hostname: s6-chromium-grid
     restart: unless-stopped
@@ -37,6 +40,7 @@ services:
       - "8080"
 
     # CDP ports exposed directly (no HTTPS needed for CDP)
+    # WebSocket VNC ports exposed for noVNC access
     ports:
       - "${CDP_PORT_START:-9222}:9222"
       - "9223:9223"
@@ -48,6 +52,16 @@ services:
       - "9229:9229"
       - "9230:9230"
       - "9231:9231"
+      - "6080:6080"
+      - "6081:6081"
+      - "6082:6082"
+      - "6083:6083"
+      - "6084:6084"
+      - "6085:6085"
+      - "6086:6086"
+      - "6087:6087"
+      - "6088:6088"
+      - "6089:6089"
 
     volumes:
       - chromium-data:/data
@@ -66,7 +80,7 @@ services:
           memory: ${MEMORY_RESERVATION:-2g}
 
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/api/status"]
+      test: ["CMD", "curl", "-f", "-u", "${DASHBOARD_USER:-admin}:${DASHBOARD_PASS:-admin}", "http://localhost:8080/api/status"]
       interval: 30s
       timeout: 10s
       retries: 3
