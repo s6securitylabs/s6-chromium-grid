@@ -1,0 +1,1613 @@
+# UI/UX Test-Driven Development Loop - Enhanced v2.0
+# Based on Oracle expert review - Production-ready configuration
+# Estimated Success Rate: 85-95% (up from 55-65%)
+
+prompt_configuration:
+  version: "2.0"
+  reviewed_by: "Oracle GPT-5.2"
+  review_date: "2026-01-09"
+  
+  # ============================================================================
+  # SEARCH & ANALYSIS MODES
+  # ============================================================================
+  
+  search_mode: |
+    BOUNDED EXHAUSTIVE SEARCH - Launch multiple background agents IN PARALLEL with caps:
+    
+    PARALLEL AGENTS:
+    - explore agents (2-3): codebase patterns, file structures, ast-grep
+    - librarian agents (1-2): remote repos, official docs, GitHub examples (only if external library involved)
+    
+    DIRECT TOOLS:
+    - Grep, ripgrep (rg), ast-grep (sg) for targeted searches
+    
+    SEARCH BOUNDS (prevent resource blowup):
+    - Max 50 files per category (docs, components, tests)
+    - Max file size: 500KB (skip larger files)
+    - Stop when no new features found after 5 consecutive docs
+    - Total search time cap: 10 minutes
+    
+    STOPPING RULES:
+    - Found all architectural indicators
+    - Feature extraction saturated (no new features in last K=5 documents)
+    - Hit file/time caps above
+  
+  analyze_mode: |
+    ANALYSIS MODE - Gather context before deep work:
+    
+    CONTEXT GATHERING (parallel):
+    - 1-2 explore agents: codebase patterns, existing implementations
+    - 1-2 librarian agents: ONLY if external library/framework involved
+    - Direct tools: Grep, AST-grep, LSP for targeted searches
+    
+    COMPLEXITY TRIGGERS (consult oracle):
+    - Architecture decisions affecting multiple systems
+    - Debugging after 2+ failed fix attempts
+    - Security/performance critical paths
+    - Unfamiliar patterns not documented in codebase
+    
+    SYNTHESIS:
+    - Consolidate findings before proceeding
+    - Document assumptions and constraints
+    - Create action plan with verification steps
+
+  # ============================================================================
+  # COMMAND INSTRUCTION
+  # ============================================================================
+
+  command_instruction:
+    title: "UI/UX Test-Driven Development Loop (Remote CDP - Playwright)"
+    
+    critical_warnings:
+      - "CRITICAL: ALL testing MUST use Playwright with chromium.connectOverCDP()"
+      - "FORBIDDEN: chromium.launch(), chromium.launchServer(), any local browser spawning"
+      - "REQUIRED: Connect to remote CDP server ws://10.10.1.2:19222/{project-name}/"
+      - "SECURITY: Never log credentials, tokens, or sensitive data in reports"
+      - "NETWORK: CDP endpoint must be reachable; restrict exposure via firewall"
+    
+    overview: |
+      Iterative test-fix-verify cycle with MANDATORY feature mapping:
+      
+      **Phase 0: Feature Discovery & Mapping** (BLOCKING - must complete first)
+      - Auto-detect architecture (SPA/MPA/Hybrid)
+      - Extract features from PRD/specs (bounded reading: max 50 docs)
+      - Map features → UI components → test cases
+      - Generate comprehensive test matrix
+      
+      **Phases 1-5: Remote Test Execution Loop**
+      - Infrastructure validation (CDP reachable, dev server running)
+      - Connect to Remote CDP (Playwright only, 3 retries, 60s timeout)
+      - Execute tests with full-page screenshots (immutable artifacts)
+      - Analyze screenshots for visual/functional issues
+      - Fix issues and re-run (max 5 iterations)
+      - Generate final report with evidence
+      
+      **Loop Contract:**
+      - ITERATION = 1..5 (forced exit at 5)
+      - Early exit: all Critical/High features pass OR no new issues found
+      - Strict ordering: connect → run → collect → analyze → fix → rerun
+
+    # ==========================================================================
+    # EXECUTION STEPS
+    # ==========================================================================
+
+    execution_steps:
+      
+      # ------------------------------------------------------------------------
+      # PHASE 0: FEATURE DISCOVERY & MAPPING (BLOCKING)
+      # ------------------------------------------------------------------------
+      
+      phase_0_discovery_and_mapping:
+        blocking: true
+        description: "Map all testable features from documentation before writing tests"
+        
+        step_0_1_detect_structure:
+          title: "Detect Application Architecture"
+          description: |
+            Identify architecture by checking key files and project structure.
+            
+            DETECTION RULES (apply in order, first match wins):
+            
+            1. SPA / Component-Based:
+               - Indicators: package.json with react/vue/angular/svelte
+               - OR: src/components/, src/pages/, src/App.*
+               - OR: vite.config.*, webpack.config.*, next.config.*
+            
+            2. MPA / Template-Based:
+               - Indicators: templates/, views/, layouts/ directories
+               - OR: server.js/app.js with express/fastify/koa
+               - OR: *.ejs, *.pug, *.hbs, *.jinja files
+            
+            3. Hybrid:
+               - Both component directories AND server templates exist
+            
+            4. Generic/Other:
+               - Fallback if none of above match
+            
+            TIE-BREAKER:
+            - If multiple indicators, prioritize by package.json dependencies
+            - If still ambiguous, choose SPA (most common)
+            
+            AUTO-DISCOVER DIRECTORIES (glob patterns, max 50 files per category):
+            
+            Documentation (priority order, stop at saturation):
+            - docs/PRD*.md, docs/prd*.md (highest priority)
+            - docs/*requirements*.md, docs/*spec*.md
+            - docs/*epic*.md, docs/*roadmap*.md, docs/*ux*.md
+            - README.md, ARCHITECTURE.md
+            
+            Source Code (based on detected architecture):
+            - SPA: src/components/**/*.{jsx,tsx,vue,svelte}, src/pages/**/*
+            - MPA: templates/**/*.*, views/**/*.*, layouts/**/*
+            - Static: public/, static/, assets/
+            
+            Existing Tests:
+            - e2e/**/*.spec.*, tests/e2e/**/*.spec.*
+            - **/*.test.{js,ts,jsx,tsx}
+            
+            OUTPUT:
+            - Architecture type (spa|mpa|hybrid|generic)
+            - List of discovered documentation files (max 50)
+            - List of component/template directories
+            - List of existing test files
+        
+        step_0_2_load_requirements:
+          title: "Load Requirements Documents"
+          description: |
+            Read discovered documentation files with bounded exhaustive search.
+            
+            READING BOUNDS (prevent resource blowup):
+            - Max 50 documents total
+            - Max file size: 500KB (skip larger)
+            - Stop after 5 consecutive docs yield no new features (saturation)
+            
+            PRIORITY ORDER:
+            1. Main PRD / Master PRD / Product Requirements
+            2. Epic and Story breakdowns
+            3. UX/UI specifications
+            4. Roadmap documents
+            5. Gap analysis documents
+            6. README and setup docs
+            7. Skip: CHANGELOG, LICENSE, node_modules, build artifacts
+            
+            FEATURE EXTRACTION:
+            - Extract user-facing features (UI elements, interactions, workflows)
+            - Extract acceptance criteria and expected behaviors
+            - Extract error states and edge cases
+            - Note source document for traceability
+            
+            SATURATION DETECTION:
+            - Track unique features found per document
+            - If last 5 docs add <2 new features total, stop reading
+        
+        step_0_3_extract_feature_matrix:
+          title: "Generate Feature Test Matrix"
+          description: |
+            Create comprehensive feature matrix from extracted requirements.
+            
+            OUTPUT FILE: `{PROJECT_ROOT}/e2e-changelog/FEATURE_TEST_MATRIX.md`
+            
+            FEATURE CATEGORIES (adapt based on actual project):
+            - Navigation & Layout (menu, routing, page structure)
+            - Core Functionality (primary user tasks)
+            - Data Display (tables, lists, charts, forms)
+            - User Interactions (buttons, modals, drag-drop)
+            - Settings & Configuration (user preferences, admin)
+            - Error Handling (boundaries, empty states, loading states)
+            - Authentication & Authorization (if applicable)
+            - Accessibility (ARIA, keyboard nav, screen reader)
+            
+            PRIORITY LEVELS:
+            - Critical: Core user flows, security, data integrity
+            - High: Important features, common workflows
+            - Medium: Nice-to-have, edge cases
+            - Low: Future enhancements, cosmetic
+            
+            MATRIX FORMAT:
+            ```markdown
+            # {PROJECT_NAME} - UI/UX Feature Test Matrix
+            
+            ## Metadata
+            - Generated: {ISO-8601 timestamp}
+            - Architecture: {detected_architecture}
+            - Documents Analyzed: {count} of {total_discovered}
+            - Features Extracted: {total_count}
+            
+            ## Source Documents
+            {list with checkmarks for read vs skipped}
+            
+            ## Feature Categories
+            
+            ### Navigation & Layout
+            | Feature ID | Feature Name | Source Doc | UI Location | Priority | Status | Test Case |
+            |------------|--------------|------------|-------------|----------|--------|-----------|
+            | NAV-001 | Main menu displays all sections | PRD-v2.md | Header | Critical | Pending | TC-001 |
+            | NAV-002 | Breadcrumbs show current path | UX-spec.md | SubHeader | High | Pending | TC-002 |
+            
+            ### Core Functionality
+            | Feature ID | Feature Name | Source Doc | UI Component | Priority | Status | Test Case |
+            |------------|--------------|------------|--------------|----------|--------|-----------|
+            | CORE-001 | User can create new item | Epic-001.md | CreateForm | Critical | Pending | TC-010 |
+            
+            ### Error Handling
+            | Feature ID | Feature Name | Source Doc | UI Component | Priority | Status | Test Case |
+            |------------|--------------|------------|--------------|----------|--------|-----------|
+            | ERR-001 | Error boundary catches exceptions | Best Practice | ErrorBoundary | Critical | Pending | TC-090 |
+            | ERR-002 | Empty state for zero results | UX Standard | DataTable | High | Pending | TC-091 |
+            | ERR-003 | Loading skeleton during fetch | UX Standard | DataLoader | High | Pending | TC-092 |
+            
+            ## Coverage Summary
+            | Category | Total | Critical | High | Medium | Low | Tested | Passed |
+            |----------|-------|----------|------|--------|-----|--------|--------|
+            | Navigation | X | X | X | X | X | 0 | 0 |
+            | Core | X | X | X | X | X | 0 | 0 |
+            | Data | X | X | X | X | X | 0 | 0 |
+            | Interactions | X | X | X | X | X | 0 | 0 |
+            | Settings | X | X | X | X | X | 0 | 0 |
+            | Errors | X | X | X | X | X | 0 | 0 |
+            | **TOTAL** | **X** | **X** | **X** | **X** | **X** | **0** | **0** |
+            
+            ## User Journeys
+            
+            ### Journey 1: New User Onboarding
+            1. Navigate to homepage
+            2. Click "Get Started" button
+            3. Complete registration form
+            4. Verify email confirmation
+            5. Access dashboard
+            
+            ### Journey 2: {Secondary Workflow}
+            {steps...}
+            ```
+        
+        step_0_4_generate_test_spec:
+          title: "Generate/Update Test Specification"
+          description: |
+            Create Playwright test spec based on architecture and feature matrix.
+            
+            OUTPUT FILE: `{PROJECT_ROOT}/e2e/ui-ux-comprehensive.spec.ts`
+            
+            MANDATORY STRUCTURE:
+            
+            ```typescript
+            import { test, expect, chromium, Browser, BrowserContext, Page } from '@playwright/test';
+            import * as path from 'path';
+            import * as fs from 'fs';
+            
+            // ===================================================================
+            // CONFIGURATION
+            // ===================================================================
+            
+            const CONFIG = {
+              // Remote CDP (REQUIRED - do NOT use launch())
+              cdp: {
+                serverBase: process.env.CDP_SERVER_BASE || 'ws://10.10.1.2:19222',
+                projectName: sanitizeProjectName(process.env.PROJECT_NAME || path.basename(process.cwd())),
+                connectTimeout: 60000,
+                retries: 3,
+                retryDelayMs: [1000, 2000, 4000], // exponential backoff
+              },
+              
+              // Test target
+              baseUrl: process.env.BASE_URL || 'http://localhost:3000',
+              
+              // Artifacts (immutable structure)
+              artifacts: {
+                screenshotDir: './e2e-changelog/screenshots',
+                reportDir: './e2e-changelog',
+              },
+              
+              // Current iteration (increment manually per run)
+              iteration: parseInt(process.env.TEST_ITERATION || '1', 10),
+              
+              // Error detection
+              errorTracking: {
+                allowedAuthUrls: ['/api/auth/', '/login', '/oauth'],
+                allowedConsolePatterns: ['Download the React DevTools'],
+                failOn5xx: true,
+                failOn401403: true, // unless URL in allowedAuthUrls
+                failOn404: false, // only warn
+                failOnConsoleError: true,
+                failOnPageError: true,
+              },
+            };
+            
+            // ===================================================================
+            // PROJECT NAME SANITIZATION (REQUIRED)
+            // ===================================================================
+            
+            function sanitizeProjectName(name: string): string {
+              return name
+                .toLowerCase()
+                .replace(/[^a-z0-9-]/g, '-') // replace invalid chars with hyphen
+                .replace(/-+/g, '-') // collapse multiple hyphens
+                .replace(/^-|-$/g, '') // trim leading/trailing hyphens
+                .slice(0, 50); // max length
+            }
+            
+            // ===================================================================
+            // REMOTE CDP CONNECTION (ENFORCED)
+            // ===================================================================
+            
+            async function connectRemoteBrowser(): Promise<Browser> {
+              const endpoint = `${CONFIG.cdp.serverBase}/${CONFIG.cdp.projectName}/`;
+              
+              console.log(`[CDP] Connecting to: ${endpoint}`);
+              
+              for (let attempt = 1; attempt <= CONFIG.cdp.retries; attempt++) {
+                try {
+                  const browser = await chromium.connectOverCDP(endpoint, {
+                    timeout: CONFIG.cdp.connectTimeout,
+                  });
+                  
+                  console.log(`[CDP] ✓ Connected successfully (attempt ${attempt})`);
+                  return browser;
+                  
+                } catch (error) {
+                  console.error(`[CDP] ✗ Connection failed (attempt ${attempt}/${CONFIG.cdp.retries}):`, error.message);
+                  
+                  if (attempt < CONFIG.cdp.retries) {
+                    const delay = CONFIG.cdp.retryDelayMs[attempt - 1];
+                    console.log(`[CDP] Retrying in ${delay}ms...`);
+                    await new Promise(resolve => setTimeout(resolve, delay));
+                  } else {
+                    throw new Error(`Failed to connect to remote CDP after ${CONFIG.cdp.retries} attempts: ${error.message}`);
+                  }
+                }
+              }
+              
+              throw new Error('Unreachable code');
+            }
+            
+            // ===================================================================
+            // ERROR TRACKING
+            // ===================================================================
+            
+            interface ErrorRecord {
+              type: 'http' | 'console' | 'pageerror' | 'requestfailed' | 'visual';
+              severity: 'critical' | 'high' | 'medium' | 'low';
+              message: string;
+              url?: string;
+              status?: number;
+              timestamp: string;
+            }
+            
+            class ErrorTracker {
+              private errors: ErrorRecord[] = [];
+              
+              recordHttpError(url: string, status: number) {
+                // Check allowlist for auth endpoints
+                const isAuthEndpoint = CONFIG.errorTracking.allowedAuthUrls.some(pattern => url.includes(pattern));
+                
+                if (status >= 500 && CONFIG.errorTracking.failOn5xx) {
+                  this.errors.push({
+                    type: 'http',
+                    severity: 'critical',
+                    message: `HTTP ${status} - Server error`,
+                    url,
+                    status,
+                    timestamp: new Date().toISOString(),
+                  });
+                } else if ((status === 401 || status === 403) && CONFIG.errorTracking.failOn401403 && !isAuthEndpoint) {
+                  this.errors.push({
+                    type: 'http',
+                    severity: 'high',
+                    message: `HTTP ${status} - Unauthorized/Forbidden (not in allowlist)`,
+                    url,
+                    status,
+                    timestamp: new Date().toISOString(),
+                  });
+                } else if (status === 404 && CONFIG.errorTracking.failOn404) {
+                  this.errors.push({
+                    type: 'http',
+                    severity: 'medium',
+                    message: `HTTP ${status} - Not found`,
+                    url,
+                    status,
+                    timestamp: new Date().toISOString(),
+                  });
+                }
+              }
+              
+              recordConsoleError(message: string) {
+                const isAllowed = CONFIG.errorTracking.allowedConsolePatterns.some(pattern => message.includes(pattern));
+                
+                if (CONFIG.errorTracking.failOnConsoleError && !isAllowed) {
+                  this.errors.push({
+                    type: 'console',
+                    severity: 'high',
+                    message: `Console error: ${message}`,
+                    timestamp: new Date().toISOString(),
+                  });
+                }
+              }
+              
+              recordPageError(error: Error) {
+                if (CONFIG.errorTracking.failOnPageError) {
+                  this.errors.push({
+                    type: 'pageerror',
+                    severity: 'high',
+                    message: `Page exception: ${error.message}`,
+                    timestamp: new Date().toISOString(),
+                  });
+                }
+              }
+              
+              recordRequestFailed(url: string, errorText: string) {
+                this.errors.push({
+                  type: 'requestfailed',
+                  severity: 'medium',
+                  message: `Network failure: ${errorText}`,
+                  url,
+                  timestamp: new Date().toISOString(),
+                });
+              }
+              
+              getErrors(minSeverity: 'critical' | 'high' | 'medium' | 'low' = 'medium'): ErrorRecord[] {
+                const severityOrder = { critical: 0, high: 1, medium: 2, low: 3 };
+                return this.errors.filter(e => severityOrder[e.severity] <= severityOrder[minSeverity]);
+              }
+              
+              hasCriticalErrors(): boolean {
+                return this.errors.some(e => e.severity === 'critical' || e.severity === 'high');
+              }
+            }
+            
+            // ===================================================================
+            // SCREENSHOT HELPERS (IMMUTABLE ARTIFACTS)
+            // ===================================================================
+            
+            function getScreenshotPath(testSlug: string, stepSlug: string, status: string): string {
+              const iterDir = path.join(
+                CONFIG.artifacts.screenshotDir,
+                `iter-${String(CONFIG.iteration).padStart(2, '0')}`
+              );
+              const testDir = path.join(iterDir, testSlug);
+              
+              fs.mkdirSync(testDir, { recursive: true });
+              
+              return path.join(testDir, `${stepSlug}_${status}.png`);
+            }
+            
+            async function captureScreenshot(page: Page, testSlug: string, stepSlug: string, status: string = 'captured'): Promise<string> {
+              const screenshotPath = getScreenshotPath(testSlug, stepSlug, status);
+              
+              await page.screenshot({
+                path: screenshotPath,
+                fullPage: true,
+                animations: 'disabled',
+              });
+              
+              console.log(`[Screenshot] Saved: ${screenshotPath}`);
+              return screenshotPath;
+            }
+            
+            // ===================================================================
+            // TEST LIFECYCLE
+            // ===================================================================
+            
+            let browser: Browser;
+            let context: BrowserContext;
+            
+            test.beforeAll(async () => {
+              // STRICT: Connect to remote CDP (NEVER launch local browser)
+              browser = await connectRemoteBrowser();
+              
+              // Use existing context or create new one
+              const contexts = browser.contexts();
+              context = contexts.length > 0 ? contexts[0] : await browser.newContext({
+                viewport: { width: 1920, height: 1080 },
+                recordVideo: undefined, // disable video recording
+              });
+            });
+            
+            test.afterAll(async () => {
+              // Cleanup
+              if (context) {
+                await context.close();
+              }
+              if (browser) {
+                await browser.close();
+              }
+            });
+            
+            // ===================================================================
+            // TEST CASES (Generated from Feature Matrix)
+            // ===================================================================
+            
+            test.describe('UI/UX Comprehensive Tests - Iteration ' + CONFIG.iteration, () => {
+              
+              // -------------------------------------------------------------------
+              // CRITICAL FEATURES
+              // -------------------------------------------------------------------
+              
+              test('TC-001: NAV-001 - Main navigation visible', async () => {
+                const page = await context.newPage();
+                const errorTracker = new ErrorTracker();
+                
+                // Setup error listeners
+                page.on('response', response => {
+                  const status = response.status();
+                  if (status >= 400) {
+                    errorTracker.recordHttpError(response.url(), status);
+                  }
+                });
+                
+                page.on('console', msg => {
+                  if (msg.type() === 'error') {
+                    errorTracker.recordConsoleError(msg.text());
+                  }
+                });
+                
+                page.on('pageerror', error => {
+                  errorTracker.recordPageError(error);
+                });
+                
+                page.on('requestfailed', request => {
+                  errorTracker.recordRequestFailed(request.url(), request.failure()?.errorText || 'Unknown');
+                });
+                
+                try {
+                  // Navigate
+                  await page.goto(CONFIG.baseUrl, { waitUntil: 'networkidle', timeout: 30000 });
+                  
+                  // Capture initial state
+                  await captureScreenshot(page, 'nav-001', '01-initial', 'unanalyzed');
+                  
+                  // Test assertion (adapt based on actual markup)
+                  const nav = page.locator('nav, [role="navigation"], header nav');
+                  await expect(nav).toBeVisible({ timeout: 5000 });
+                  
+                  // Capture success state
+                  await captureScreenshot(page, 'nav-001', '02-final', 'pass');
+                  
+                  // Check for errors
+                  if (errorTracker.hasCriticalErrors()) {
+                    const errors = errorTracker.getErrors('high');
+                    throw new Error(`Test passed but encountered ${errors.length} errors:\n${JSON.stringify(errors, null, 2)}`);
+                  }
+                  
+                } finally {
+                  await page.close();
+                }
+              });
+              
+              // Add more test cases based on feature matrix...
+              // TC-002, TC-003, etc.
+              
+            });
+            ```
+            
+            VALIDATION CHECKLIST:
+            - [ ] File created at correct path
+            - [ ] Imports Playwright correctly
+            - [ ] Uses connectOverCDP() only (NO launch())
+            - [ ] Implements sanitizeProjectName()
+            - [ ] Implements retry logic with exponential backoff
+            - [ ] Implements error tracking with allowlists
+            - [ ] Uses immutable screenshot paths
+            - [ ] Cleanup in afterAll()
+            - [ ] File compiles without TypeScript errors
+        
+        step_0_5_verify_coverage:
+          title: "Verify Phase 0 Completion"
+          description: |
+            Blocking checklist - do NOT proceed to Phase 1 until complete.
+            
+            VERIFICATION CHECKLIST:
+            - [ ] Architecture correctly identified (spa|mpa|hybrid|generic)
+            - [ ] Documentation discovery complete (max 50 files)
+            - [ ] Feature matrix generated with 10+ features
+            - [ ] All Critical priority features have test cases
+            - [ ] All High priority features have test cases
+            - [ ] User journeys documented (at least 1)
+            - [ ] Test spec file created at {PROJECT_ROOT}/e2e/ui-ux-comprehensive.spec.ts
+            - [ ] Test spec compiles: `npx tsc --noEmit e2e/ui-ux-comprehensive.spec.ts`
+            - [ ] No TypeScript errors
+            
+            IF ANY ITEM FAILS:
+            - Fix the issue before proceeding
+            - Document the blocker in e2e-changelog/phase-0-blockers.md
+            - Do NOT start Phase 1 until resolved
+      
+      # ------------------------------------------------------------------------
+      # PHASE 1: INFRASTRUCTURE VALIDATION & DISCOVERY RUN
+      # ------------------------------------------------------------------------
+      
+      phase_1_discovery_run:
+        description: "First test execution with infrastructure validation"
+        
+        step_1_0_infrastructure_validation:
+          title: "Validate Infrastructure Prerequisites"
+          description: |
+            Verify all prerequisites before running tests.
+            
+            CHECKS (fail-fast on any failure):
+            
+            1. CDP Server Reachability:
+               - Ping ws://10.10.1.2:19222/ endpoint
+               - Attempt WebSocket handshake
+               - Timeout: 10 seconds
+               - On failure: provide actionable error with endpoint, network diagnostics
+            
+            2. Project Name Validation:
+               - Derive from folder name or PROJECT_NAME env var
+               - Apply sanitizeProjectName()
+               - Validate: 2-50 chars, lowercase, alphanumeric + hyphens
+               - Construct full endpoint: ws://10.10.1.2:19222/{sanitized}/
+               - Log the endpoint to console
+            
+            3. Dev Server Status:
+               - Check if BASE_URL is reachable (HTTP GET with 5s timeout)
+               - If 404/timeout, attempt to start dev server:
+                 - Check package.json for "dev" or "start" script
+                 - Run in background: `npm run dev` or `npm start`
+                 - Wait up to 60s for server to be reachable
+                 - Track PID for cleanup
+               - On failure: provide actionable error
+            
+            4. Artifact Directories:
+               - Create if not exist:
+                 - e2e-changelog/
+                 - e2e-changelog/screenshots/
+                 - e2e-changelog/screenshots/iter-01/
+               - Verify write permissions
+            
+            5. Playwright Installation:
+               - Check if @playwright/test is installed
+               - Check if chromium browser binary exists
+               - If missing: provide install command
+            
+            OUTPUT:
+            - Log all validation results to console
+            - Create e2e-changelog/infra-validation.json with results
+            - On any failure: STOP and provide fix instructions
+        
+        step_1_1_remote_connection:
+          title: "Establish Remote CDP Connection"
+          description: |
+            Connect to remote browser with retry logic.
+            
+            STRICT ENFORCEMENT:
+            - ONLY use chromium.connectOverCDP()
+            - NEVER call chromium.launch(), chromium.launchServer(), or any local spawn
+            - Fail immediately if launch() is detected in code
+            
+            CONNECTION PROCEDURE:
+            
+            1. Build Endpoint:
+               - CDP_SERVER_BASE = env.CDP_SERVER_BASE || 'ws://10.10.1.2:19222'
+               - PROJECT_NAME = sanitized project name (from step 1_0)
+               - CDP_ENDPOINT = `${CDP_SERVER_BASE}/${PROJECT_NAME}/`
+               - Must end with trailing slash
+            
+            2. Connect with Retries:
+               - Attempt 1: immediate
+               - Attempt 2: wait 1000ms
+               - Attempt 3: wait 2000ms
+               - Timeout per attempt: 60 seconds
+               - Log each attempt and result
+            
+            3. Connection Proof:
+               - On success, fetch browser version: browser.version()
+               - Log CDP endpoint and browser version
+               - Verify context exists or create new one
+               - Store connection metadata in iteration report
+            
+            4. Failure Handling:
+               - After 3 failed attempts, throw detailed error:
+                 - Endpoint attempted
+                 - Last error message
+                 - Network diagnostics suggestion
+                 - Check if gateway supports dynamic mode
+               - Mark iteration as "infra_failure"
+               - Do NOT proceed to test execution
+            
+            CONTEXT POLICY:
+            - Check browser.contexts() first
+            - If exists: reuse contexts()[0]
+            - If empty: create new context with:
+              - viewport: { width: 1920, height: 1080 }
+              - Clear cookies/localStorage (fresh state)
+            
+            STATE RESET (per test):
+            - Create new page per test case
+            - Optionally clear context storage between tests
+            - Close page after test completes
+        
+        step_1_2_execute_tests:
+          title: "Execute Test Suite"
+          description: |
+            Run Playwright tests with error tracking enabled.
+            
+            EXECUTION COMMAND:
+            ```bash
+            TEST_ITERATION=1 \
+            PROJECT_NAME={sanitized} \
+            CDP_SERVER_BASE=ws://10.10.1.2:19222 \
+            BASE_URL=http://localhost:{port} \
+            npx playwright test e2e/ui-ux-comprehensive.spec.ts --headed=false
+            ```
+            
+            DURING EXECUTION:
+            - All error listeners active (HTTP, console, pageerror, requestfailed)
+            - Screenshots captured per test case (immutable naming)
+            - Errors accumulated in ErrorTracker
+            - Progress logged to console
+            
+            SCREENSHOT NAMING (immutable, concurrency-safe):
+            - Path: e2e-changelog/screenshots/iter-01/{testSlug}/{stepSlug}_{status}.png
+            - Example: iter-01/nav-001/01-initial_unanalyzed.png
+            - Never rename or overwrite - create new files only
+            
+            ERROR CLASSIFICATION:
+            - Critical: HTTP 5xx, page exceptions
+            - High: Console errors (not allowlisted), HTTP 401/403 (not allowlisted)
+            - Medium: HTTP 404, request failures
+            - Low: Console warnings
+            
+            TEST RESULTS:
+            - Track pass/fail per test case
+            - Map back to Feature IDs from matrix
+            - Update feature matrix status column
+        
+        step_1_3_generate_discovery_report:
+          title: "Generate Iteration 1 Report"
+          description: |
+            Create comprehensive report for discovery iteration.
+            
+            OUTPUT FILE: e2e-changelog/iteration-01-discovery.json
+            
+            ```json
+            {
+              "iteration": 1,
+              "phase": "discovery",
+              "timestamp": "2026-01-09T08:46:47+10:30",
+              "architecture": "spa",
+              "infrastructure": {
+                "cdpEndpoint": "ws://10.10.1.2:19222/s6-chromium-grid/",
+                "baseUrl": "http://localhost:8080",
+                "connectionRetries": 1,
+                "connectionSuccess": true,
+                "browserVersion": "Chrome/120.0.6099.109"
+              },
+              "coverage": {
+                "featuresTotal": 42,
+                "featuresTested": 15,
+                "featuresPassed": 10,
+                "featuresFailed": 5,
+                "featuresSkipped": 27
+              },
+              "errors": {
+                "http": [
+                  { "url": "http://localhost:8080/api/missing", "status": 404, "severity": "medium", "timestamp": "..." }
+                ],
+                "console": [
+                  { "message": "Failed to load resource", "severity": "high", "timestamp": "..." }
+                ],
+                "pageerror": [],
+                "requestfailed": []
+              },
+              "screenshots": [
+                {
+                  "testCase": "TC-001",
+                  "featureId": "NAV-001",
+                  "path": "e2e-changelog/screenshots/iter-01/nav-001/01-initial_unanalyzed.png",
+                  "status": "unanalyzed",
+                  "timestamp": "2026-01-09T08:47:15+10:30"
+                },
+                {
+                  "testCase": "TC-001",
+                  "featureId": "NAV-001",
+                  "path": "e2e-changelog/screenshots/iter-01/nav-001/02-final_pass.png",
+                  "status": "pass",
+                  "timestamp": "2026-01-09T08:47:18+10:30"
+                }
+              ],
+              "testResults": [
+                { "testCase": "TC-001", "featureId": "NAV-001", "status": "pass", "duration": 3421 },
+                { "testCase": "TC-002", "featureId": "NAV-002", "status": "fail", "duration": 1822, "error": "Locator timeout" }
+              ]
+            }
+            ```
+            
+            ALSO UPDATE:
+            - Feature matrix: Update Status column (Pending → Pass/Fail)
+            - Feature matrix: Update Tested column in Coverage Summary
+      
+      # ------------------------------------------------------------------------
+      # PHASE 2: ANALYSIS & FIX
+      # ------------------------------------------------------------------------
+      
+      phase_2_analysis_and_fix:
+        description: "Analyze failures and apply fixes"
+        
+        step_2_1_analyze_screenshots:
+          title: "Visual Analysis"
+          description: |
+            Review screenshots for visual and functional issues.
+            
+            FOR EACH FAILED TEST:
+            
+            1. Load screenshot images (use look_at tool if needed for AI analysis)
+            
+            2. Check for:
+               - All expected elements visible?
+               - Layout correct (no overlaps, proper spacing)?
+               - Text readable and complete?
+               - Interactive elements identifiable (buttons, links)?
+               - Error messages visible (if test failed)?
+               - Loading states resolved (no infinite spinners)?
+               - Images loaded (not broken)?
+               - Colors/styling match expectations (if baseline exists)?
+            
+            3. Create analysis metadata file:
+               e2e-changelog/screenshots/iter-01/{testSlug}/analysis.json
+               
+               ```json
+               {
+                 "testCase": "TC-002",
+                 "featureId": "NAV-002",
+                 "status": "fail",
+                 "issues": [
+                   {
+                     "type": "missing_element",
+                     "severity": "high",
+                     "description": "Breadcrumb navigation not found",
+                     "screenshot": "01-initial_unanalyzed.png"
+                   },
+                   {
+                     "type": "console_error",
+                     "severity": "high",
+                     "description": "Uncaught TypeError: Cannot read property 'map' of undefined",
+                     "file": "Breadcrumbs.tsx:42"
+                   }
+                 ],
+                 "rootCause": "Breadcrumbs component not rendering due to undefined navigation array",
+                 "fixRequired": true
+               }
+               ```
+            
+            4. Classify by root cause:
+               - Missing component/element
+               - Layout/CSS issue
+               - JavaScript error
+               - API/data loading issue
+               - Network/HTTP error
+               - Test selector issue (flaky test)
+        
+        step_2_2_apply_fixes:
+          title: "Fix Identified Issues"
+          description: |
+            Apply targeted fixes based on analysis.
+            
+            FOR EACH ISSUE:
+            
+            1. Identify root cause and source file:
+               - Use grep/ast-grep to locate component/template
+               - Check error stack traces
+               - Review related code
+            
+            2. Apply fix based on issue type:
+            
+               | Issue Type | Fix Action | Example |
+               |------------|------------|---------|
+               | Missing element | Add component/markup | Add `<Breadcrumbs />` to layout |
+               | Layout/CSS | Fix styles | Adjust flex/grid, fix z-index |
+               | JS error | Fix logic/null check | Add `navigation?.map()` guard |
+               | API error | Fix endpoint/handler | Correct route, add error handling |
+               | Network error | Fix URL/CORS | Update API base URL |
+               | Flaky test | Fix selector | Use more stable locator |
+            
+            3. Document fix:
+               e2e-changelog/iteration-02-fixes.md
+               
+               ```markdown
+               # Iteration 2 - Fixes Applied
+               
+               ## Fix 1: NAV-002 - Breadcrumbs not rendering
+               
+               **Issue:** Breadcrumb component crashed due to undefined navigation array
+               
+               **Root Cause:** Navigation context not initialized before component mount
+               
+               **Files Changed:**
+               - src/components/Breadcrumbs.tsx (add null check)
+               - src/contexts/NavigationContext.tsx (add default value)
+               
+               **Diff:**
+               ```diff
+               - const items = navigation.map(item => ...)
+               + const items = navigation?.map(item => ...) ?? []
+               ```
+               
+               **Expected Result:** Breadcrumbs display without error
+               ```
+            
+            4. Verify fix compiles:
+               - Run TypeScript compiler
+               - Check for new errors
+               - Run linter if available
+        
+        step_2_3_rerun_tests:
+          title: "Re-execute Tests (Iteration 2)"
+          description: |
+            Run tests again to verify fixes.
+            
+            EXECUTION:
+            ```bash
+            TEST_ITERATION=2 \
+            PROJECT_NAME={sanitized} \
+            CDP_SERVER_BASE=ws://10.10.1.2:19222 \
+            BASE_URL=http://localhost:{port} \
+            npx playwright test e2e/ui-ux-comprehensive.spec.ts
+            ```
+            
+            SCREENSHOT NAMING (new iteration folder):
+            - Path: e2e-changelog/screenshots/iter-02/{testSlug}/{stepSlug}_{status}.png
+            - DO NOT overwrite iter-01 screenshots
+            - Maintain full history
+            
+            GENERATE REPORT:
+            - e2e-changelog/iteration-02-fixes.json
+            - Same structure as iteration-01-discovery.json
+            - Compare pass rates: iteration 1 vs 2
+      
+      # ------------------------------------------------------------------------
+      # PHASES 3-5: REFINEMENT ITERATIONS
+      # ------------------------------------------------------------------------
+      
+      phases_3_to_5_refinement:
+        description: "Continue fixing until all pass or max iterations reached"
+        
+        loop_contract:
+          description: |
+            ITERATION LOOP (3, 4, 5):
+            
+            FOR i IN 3..5:
+              
+              1. Analyze iteration-(i-1) failures
+              2. Apply targeted fixes
+              3. Re-run tests with TEST_ITERATION=i
+              4. Generate iteration-0i-refinement.json
+              5. Check exit conditions:
+                 
+                 EARLY EXIT (stop iteration):
+                 - All tests pass
+                 - All Critical features pass AND All High features pass
+                 - No new issues found (same failures as previous iteration)
+                 
+                 FORCED EXIT:
+                 - Iteration 5 complete (regardless of status)
+              
+              6. Update feature matrix after each iteration
+            
+            ARTIFACT STRUCTURE:
+            ```
+            e2e-changelog/
+              FEATURE_TEST_MATRIX.md (updated after each iteration)
+              iteration-01-discovery.json
+              iteration-02-fixes.json
+              iteration-03-refinement.json
+              iteration-04-refinement.json
+              iteration-05-refinement.json (final)
+              screenshots/
+                iter-01/{testSlug}/{step}_{status}.png
+                iter-02/{testSlug}/{step}_{status}.png
+                iter-03/{testSlug}/{step}_{status}.png
+                iter-04/{testSlug}/{step}_{status}.png
+                iter-05/{testSlug}/{step}_{status}.png
+            ```
+      
+      # ------------------------------------------------------------------------
+      # PHASE 6: FINAL REPORT
+      # ------------------------------------------------------------------------
+      
+      phase_6_final_report:
+        description: "Generate comprehensive final report"
+        
+        step_6_1_create_final_report:
+          title: "Compile Final UI/UX TDD Report"
+          description: |
+            Aggregate all iterations into executive summary.
+            
+            OUTPUT FILE: e2e-changelog/UI-UX-TDD-REPORT.md
+            
+            ```markdown
+            # {PROJECT_NAME} - UI/UX TDD Final Report
+            
+            ## Executive Summary
+            
+            - **Project:** {name}
+            - **Architecture:** {spa|mpa|hybrid|generic}
+            - **Testing Mode:** Remote CDP via Playwright
+            - **CDP Endpoint:** ws://10.10.1.2:19222/{project}/
+            - **Test Period:** {start_date} to {end_date}
+            - **Total Iterations:** {count}
+            
+            ### Coverage
+            
+            - **Features Identified:** {total} ({critical} Critical, {high} High, {medium} Medium, {low} Low)
+            - **Features Tested:** {tested}
+            - **Features Passed:** {passed}
+            - **Features Failed:** {failed}
+            - **Test Coverage:** {passed/total * 100}%
+            
+            ### Pass Rate Progression
+            
+            | Iteration | Tests Run | Passed | Failed | Pass Rate | Delta |
+            |-----------|-----------|--------|--------|-----------|-------|
+            | 1 - Discovery | 15 | 10 | 5 | 66.7% | - |
+            | 2 - Fixes | 15 | 13 | 2 | 86.7% | +20.0% |
+            | 3 - Refinement | 15 | 14 | 1 | 93.3% | +6.6% |
+            | 4 - Refinement | 15 | 15 | 0 | 100.0% | +6.7% |
+            
+            **Final Pass Rate:** 100.0%
+            **Iterations Required:** 4 of 5
+            
+            ## Feature Coverage by Category
+            
+            | Category | Total | Critical | High | Medium | Low | Tested | Passed | Failed | Coverage |
+            |----------|-------|----------|------|--------|-----|--------|--------|--------|----------|
+            | Navigation | 8 | 3 | 3 | 2 | 0 | 8 | 8 | 0 | 100% |
+            | Core Functionality | 12 | 6 | 4 | 2 | 0 | 12 | 12 | 0 | 100% |
+            | Data Display | 10 | 2 | 5 | 3 | 0 | 10 | 10 | 0 | 100% |
+            | User Interactions | 7 | 1 | 4 | 2 | 0 | 7 | 7 | 0 | 100% |
+            | Settings | 3 | 0 | 1 | 2 | 0 | 3 | 3 | 0 | 100% |
+            | Error Handling | 2 | 2 | 0 | 0 | 0 | 2 | 2 | 0 | 100% |
+            | **TOTAL** | **42** | **14** | **17** | **11** | **0** | **42** | **42** | **0** | **100%** |
+            
+            ## Iteration Summaries
+            
+            ### Iteration 1: Discovery
+            
+            **Objective:** Baseline test run to identify all issues
+            
+            **Results:**
+            - Tests executed: 15
+            - Passed: 10 (66.7%)
+            - Failed: 5 (33.3%)
+            
+            **Issues Found:**
+            1. NAV-002: Breadcrumbs not rendering (JS error)
+            2. CORE-003: Form validation not working (missing handler)
+            3. DATA-001: Table pagination broken (API error)
+            4. INT-002: Modal close button not visible (CSS z-index)
+            5. ERR-001: Error boundary not catching exceptions (component missing)
+            
+            **Screenshots:** 30 captured (15 tests × 2 steps)
+            
+            ---
+            
+            ### Iteration 2: First Fix Round
+            
+            **Objective:** Fix all discovered issues from iteration 1
+            
+            **Fixes Applied:**
+            1. Added null check to Breadcrumbs component (src/components/Breadcrumbs.tsx)
+            2. Implemented form validation handler (src/components/CreateForm.tsx)
+            3. Fixed pagination API endpoint (src/api/data.ts)
+            4. Adjusted modal z-index (src/styles/modal.css)
+            5. Added ErrorBoundary to App root (src/App.tsx)
+            
+            **Files Modified:** 5
+            
+            **Results:**
+            - Tests executed: 15
+            - Passed: 13 (86.7%)
+            - Failed: 2 (13.3%)
+            - Improvement: +20.0%
+            
+            **Remaining Issues:**
+            1. CORE-005: Search debouncing too aggressive (UX issue)
+            2. DATA-004: Chart tooltips not appearing (library config)
+            
+            ---
+            
+            ### Iteration 3: Refinement
+            
+            **Objective:** Fix remaining 2 issues
+            
+            **Fixes Applied:**
+            1. Reduced search debounce from 1000ms to 300ms (src/components/SearchBar.tsx)
+            2. Enabled Chart.js tooltip plugin (src/components/Chart.tsx)
+            
+            **Files Modified:** 2
+            
+            **Results:**
+            - Tests executed: 15
+            - Passed: 14 (93.3%)
+            - Failed: 1 (6.7%)
+            - Improvement: +6.6%
+            
+            **Remaining Issues:**
+            1. INT-007: Drag-drop occasionally flaky (test selector issue)
+            
+            ---
+            
+            ### Iteration 4: Final Refinement
+            
+            **Objective:** Fix flaky test
+            
+            **Fixes Applied:**
+            1. Improved drag-drop test selector (e2e/ui-ux-comprehensive.spec.ts)
+            
+            **Files Modified:** 1 (test file only, no source changes)
+            
+            **Results:**
+            - Tests executed: 15
+            - Passed: 15 (100.0%)
+            - Failed: 0
+            - Improvement: +6.7%
+            
+            **Status:** ALL TESTS PASSING ✓
+            
+            **Early Exit:** Iteration 4 (stopped before iteration 5 due to 100% pass rate)
+            
+            ---
+            
+            ## Visual Evidence
+            
+            ### NAV-002: Breadcrumbs Rendering (Before → After)
+            
+            | Before (Iteration 1) | After (Iteration 2) |
+            |----------------------|---------------------|
+            | ![](screenshots/iter-01/nav-002/01-initial_unanalyzed.png) | ![](screenshots/iter-02/nav-002/01-initial_pass.png) |
+            | **Issue:** Console error, no breadcrumbs visible | **Fixed:** Breadcrumbs display correctly |
+            
+            ### CORE-003: Form Validation (Before → After)
+            
+            | Before (Iteration 1) | After (Iteration 2) |
+            |----------------------|---------------------|
+            | ![](screenshots/iter-01/core-003/02-submit_fail.png) | ![](screenshots/iter-02/core-003/02-submit_pass.png) |
+            | **Issue:** Form submits invalid data | **Fixed:** Validation errors displayed |
+            
+            (Include screenshots for all major fixes)
+            
+            ---
+            
+            ## Error Summary
+            
+            ### Errors by Type (All Iterations)
+            
+            | Type | Count | Critical | High | Medium | Low |
+            |------|-------|----------|------|--------|-----|
+            | HTTP Errors | 3 | 0 | 0 | 3 | 0 |
+            | Console Errors | 5 | 0 | 5 | 0 | 0 |
+            | Page Exceptions | 1 | 0 | 1 | 0 | 0 |
+            | Request Failures | 2 | 0 | 0 | 2 | 0 |
+            | Visual Issues | 2 | 0 | 0 | 2 | 0 |
+            | **TOTAL** | **13** | **0** | **6** | **7** | **0** |
+            
+            ### Errors by Iteration
+            
+            | Iteration | Total Errors | Fixed | Remaining |
+            |-----------|--------------|-------|-----------|
+            | 1 | 13 | 0 | 13 |
+            | 2 | 5 | 8 | 5 |
+            | 3 | 1 | 4 | 1 |
+            | 4 | 0 | 1 | 0 |
+            
+            ---
+            
+            ## Remaining Issues
+            
+            **Status:** NONE - All issues resolved ✓
+            
+            ---
+            
+            ## Recommendations
+            
+            ### Immediate Actions
+            
+            1. **None required** - all critical and high-priority features passing
+            
+            ### Future Enhancements
+            
+            1. **Test Coverage:** Add tests for Medium and Low priority features (27 remaining)
+            2. **Accessibility:** Add ARIA label checks and keyboard navigation tests
+            3. **Performance:** Add Lighthouse CI for performance regression detection
+            4. **Visual Regression:** Implement Percy/Chromatic for visual diff testing
+            5. **Mobile:** Add mobile viewport testing (currently desktop only)
+            
+            ### Code Quality
+            
+            1. **Error Handling:** Continue improving error boundaries and fallback UI
+            2. **Type Safety:** Address any remaining TypeScript `any` types
+            3. **Test Stability:** Monitor for flaky tests in CI environment
+            
+            ---
+            
+            ## Appendix
+            
+            ### Test Execution Environment
+            
+            - **OS:** Linux (container)
+            - **Node.js:** v20.11.0
+            - **Playwright:** 1.40.1
+            - **Browser:** Chromium 120.0.6099.109
+            - **Viewport:** 1920x1080
+            - **Network:** Remote CDP via ws://10.10.1.2:19222/
+            
+            ### Files Modified
+            
+            | File | Iteration | Type | Lines Changed |
+            |------|-----------|------|---------------|
+            | src/components/Breadcrumbs.tsx | 2 | Fix | +3 -1 |
+            | src/components/CreateForm.tsx | 2 | Fix | +15 -2 |
+            | src/api/data.ts | 2 | Fix | +5 -3 |
+            | src/styles/modal.css | 2 | Fix | +2 -1 |
+            | src/App.tsx | 2 | Fix | +8 -1 |
+            | src/components/SearchBar.tsx | 3 | Fix | +1 -1 |
+            | src/components/Chart.tsx | 3 | Fix | +3 -0 |
+            | e2e/ui-ux-comprehensive.spec.ts | 4 | Test | +2 -1 |
+            
+            ### Artifact Index
+            
+            - Feature Matrix: `e2e-changelog/FEATURE_TEST_MATRIX.md`
+            - Iteration Reports: `e2e-changelog/iteration-*.json` (4 files)
+            - Screenshots: `e2e-changelog/screenshots/iter-*/*/*.png` (120 files)
+            - Fix Logs: `e2e-changelog/iteration-*-fixes.md` (3 files)
+            - This Report: `e2e-changelog/UI-UX-TDD-REPORT.md`
+            
+            ---
+            
+            **Report Generated:** 2026-01-09T10:32:45+10:30
+            **Total Time:** 4 iterations × ~15 min = ~60 minutes
+            **Final Status:** ✓ PASS - All critical features validated
+            ```
+
+    # ==========================================================================
+    # ERROR DETECTION CONFIGURATION (Implementation-Ready)
+    # ==========================================================================
+
+    error_detection_configuration:
+      description: "Response-based error detection with allowlists"
+      
+      http_status_tracking:
+        implementation: |
+          ```typescript
+          page.on('response', response => {
+            const status = response.status();
+            const url = response.url();
+            
+            if (status >= 500) {
+              errorTracker.recordHttpError(url, status); // Critical
+            } else if (status === 401 || status === 403) {
+              const isAllowed = CONFIG.errorTracking.allowedAuthUrls.some(pattern => url.includes(pattern));
+              if (!isAllowed) {
+                errorTracker.recordHttpError(url, status); // High
+              }
+            } else if (status === 404) {
+              // Only fail if main document or critical resource
+              if (response.request().resourceType() === 'document') {
+                errorTracker.recordHttpError(url, status); // Medium
+              }
+              // Otherwise just log, don't fail
+            }
+          });
+          ```
+        
+        severity_mapping:
+          http_500_plus:
+            detection: "response.status() >= 500"
+            severity: "critical"
+            auto_fail: true
+          http_401_403:
+            detection: "response.status() === 401 || 403"
+            severity: "high"
+            auto_fail: true
+            allowlist: "CONFIG.errorTracking.allowedAuthUrls (e.g., ['/api/auth/', '/login'])"
+          http_404:
+            detection: "response.status() === 404 && resourceType === 'document'"
+            severity: "medium"
+            auto_fail: false
+            note: "Only fail for main document, not subresources"
+      
+      network_failures:
+        implementation: |
+          ```typescript
+          page.on('requestfailed', request => {
+            errorTracker.recordRequestFailed(
+              request.url(),
+              request.failure()?.errorText || 'Unknown network error'
+            );
+          });
+          ```
+        severity: "medium"
+        auto_fail: false
+      
+      console_errors:
+        implementation: |
+          ```typescript
+          page.on('console', msg => {
+            if (msg.type() === 'error') {
+              const text = msg.text();
+              const isAllowed = CONFIG.errorTracking.allowedConsolePatterns.some(
+                pattern => text.includes(pattern)
+              );
+              
+              if (!isAllowed) {
+                errorTracker.recordConsoleError(text); // High severity
+              }
+            }
+          });
+          ```
+        severity: "high"
+        auto_fail: true
+        allowlist: "CONFIG.errorTracking.allowedConsolePatterns (e.g., ['Download the React DevTools'])"
+      
+      console_warnings:
+        implementation: |
+          ```typescript
+          page.on('console', msg => {
+            if (msg.type() === 'warning') {
+              // Log but don't fail
+              console.warn('[Browser Console]', msg.text());
+            }
+          });
+          ```
+        severity: "low"
+        auto_fail: false
+      
+      page_exceptions:
+        implementation: |
+          ```typescript
+          page.on('pageerror', error => {
+            errorTracker.recordPageError(error); // High severity
+          });
+          ```
+        severity: "high"
+        auto_fail: true
+      
+      broken_images:
+        implementation: |
+          ```typescript
+          // After page load
+          const brokenImages = await page.evaluate(() => {
+            return Array.from(document.images)
+              .filter(img => !img.complete || img.naturalWidth === 0 || img.naturalHeight === 0)
+              .map(img => ({ src: img.src, alt: img.alt }));
+          });
+          
+          if (brokenImages.length > 0) {
+            errorTracker.recordVisualIssue('broken_images', brokenImages);
+          }
+          ```
+        severity: "medium"
+        auto_fail: false
+
+    # ==========================================================================
+    # ARCHITECTURE CONFIGURATIONS
+    # ==========================================================================
+
+    architecture_configurations:
+      single_page_application:
+        type: "SPA / Component-Based"
+        indicators:
+          - "package.json contains react|vue|angular|svelte"
+          - "src/components/ or src/pages/ exists"
+          - "vite.config.* or webpack.config.* exists"
+        config: |
+          ```yaml
+          cdpServer: ws://10.10.1.2:19222/{project-name}/
+          baseUrl: http://localhost:{port}
+          testDir: e2e/
+          screenshotDir: e2e-changelog/screenshots/
+          sourcePatterns:
+            components: src/components/**/*.{jsx,tsx,vue,svelte}
+            pages: src/pages/**/*.{jsx,tsx,vue,svelte}
+            views: src/views/**/*.{jsx,tsx,vue,svelte}
+          ```
+      
+      multi_page_application:
+        type: "MPA / Template-Based"
+        indicators:
+          - "templates/ or views/ or layouts/ exists"
+          - "server.js with express/fastify/koa"
+          - "*.ejs or *.pug or *.hbs files exist"
+        config: |
+          ```yaml
+          cdpServer: ws://10.10.1.2:19222/{project-name}/
+          baseUrl: http://localhost:{port}
+          testDir: tests/e2e/
+          sourcePatterns:
+            templates: templates/**/*
+            views: views/**/*
+            static: static/**/*
+            public: public/**/*
+          ```
+      
+      hybrid:
+        type: "Hybrid (SPA + Server Rendering)"
+        indicators:
+          - "Both component and template directories exist"
+          - "next.config.js or nuxt.config.js exists"
+        config: |
+          ```yaml
+          cdpServer: ws://10.10.1.2:19222/{project-name}/
+          baseUrl: http://localhost:{port}
+          testDir: e2e/
+          sourcePatterns:
+            components: src/components/**/*.{jsx,tsx}
+            pages: src/pages/**/*.{jsx,tsx}
+            templates: src/templates/**/*
+          ```
+      
+      generic_other:
+        type: "Generic / Custom"
+        indicators:
+          - "Fallback when no other type matches"
+        config: |
+          ```yaml
+          cdpServer: ws://10.10.1.2:19222/{project-name}/
+          baseUrl: http://localhost:{port}
+          testDir: e2e/
+          ```
+
+    # ==========================================================================
+    # SUCCESS CRITERIA
+    # ==========================================================================
+
+    success_criteria:
+      phase_0:
+        - "Architecture correctly detected (spa|mpa|hybrid|generic)"
+        - "Documentation discovered (max 50 files, stopped at saturation)"
+        - "Feature matrix generated with 10+ features"
+        - "All Critical priority features have test cases"
+        - "All High priority features have test cases"
+        - "Test spec created and compiles without errors"
+      
+      infrastructure_validation:
+        - "CDP endpoint reachable (WebSocket handshake successful)"
+        - "Project name sanitized and validated (2-50 chars, lowercase, alphanumeric+hyphens)"
+        - "Dev server reachable at BASE_URL"
+        - "Artifact directories created and writable"
+        - "Playwright installed with chromium binary"
+      
+      phase_1_to_5:
+        - "Remote CDP connection successful (3 retries, exponential backoff)"
+        - "Browser version logged (proof of remote connection)"
+        - "All tests executed (no infra failures)"
+        - "Screenshots captured (immutable naming, per-iteration folders)"
+        - "Error tracking active (HTTP, console, pageerror, requestfailed)"
+        - "Iteration report generated (JSON format)"
+      
+      final:
+        - "Pass rate >= 90% OR all Critical features passing"
+        - "Final report generated (markdown with visual evidence)"
+        - "Feature matrix updated with final status"
+        - "All artifacts preserved (screenshots, reports, logs)"
+        - "Browser and context closed (cleanup complete)"
+
+    # ==========================================================================
+    # ENVIRONMENT VARIABLES
+    # ==========================================================================
+
+    environment_variables: |
+      ```bash
+      # Project Configuration
+      export PROJECT_ROOT=$(pwd)
+      export PROJECT_NAME=auto  # Auto-detected from folder name, then sanitized
+      export PROJECT_TYPE=auto  # Auto-detected: spa|mpa|hybrid|generic
+      
+      # Remote CDP (REQUIRED)
+      export CDP_SERVER_BASE="ws://10.10.1.2:19222"
+      # Full endpoint constructed as: ${CDP_SERVER_BASE}/${sanitized_PROJECT_NAME}/
+      
+      # Test Target
+      export BASE_URL=auto  # Auto-detected or http://localhost:PORT
+      
+      # Test Execution
+      export HEADLESS=true
+      export TEST_ITERATION=1  # Increment per run: 1, 2, 3, 4, 5
+      
+      # Artifacts
+      export SCREENSHOT_DIR=./e2e-changelog/screenshots
+      export REPORT_DIR=./e2e-changelog
+      
+      # Error Detection (Optional Overrides)
+      export FAIL_ON_HTTP_5XX=true
+      export FAIL_ON_HTTP_401_403=true
+      export FAIL_ON_CONSOLE_ERROR=true
+      export FAIL_ON_PAGE_ERROR=true
+      export ALLOWED_AUTH_URLS="/api/auth/,/login,/oauth"
+      export ALLOWED_CONSOLE_PATTERNS="Download the React DevTools"
+      
+      # Dev Server (if auto-start needed)
+      export DEV_SERVER_START_CMD="npm run dev"
+      export DEV_SERVER_READY_TIMEOUT=60000
+      ```
+
+    # ==========================================================================
+    # CRITICAL NOTES
+    # ==========================================================================
+
+    notes:
+      blocking_requirements:
+        - "Phase 0 is BLOCKING - complete feature mapping before testing"
+        - "Infrastructure validation is BLOCKING - must pass all checks"
+        - "Remote CDP connection is BLOCKING - 3 retries, then fail"
+        - "Playwright ONLY - no other automation frameworks allowed"
+      
+      strict_enforcement:
+        - "NEVER use chromium.launch() - ONLY chromium.connectOverCDP()"
+        - "All tests must connect to ws://10.10.1.2:19222/{project}/"
+        - "Screenshot artifacts are IMMUTABLE - never rename or overwrite"
+        - "Always use per-iteration folders for screenshots"
+      
+      security:
+        - "Never log credentials, tokens, or sensitive data in reports"
+        - "CDP endpoint should be firewalled (not publicly exposed)"
+        - "Use environment variables for sensitive config"
+      
+      resource_management:
+        - "Always close browser in afterAll()"
+        - "Always close pages after each test"
+        - "Stop dev server if started (track PID)"
+        - "Maximum 5 iterations to prevent infinite loops"
+      
+      best_practices:
+        - "Screenshots use animations: 'disabled' for consistency"
+        - "Feature matrix is source of truth for coverage"
+        - "Adapt categories based on actual project requirements"
+        - "Early exit when all Critical/High pass or no new issues"
+        - "Document all fixes in iteration-XX-fixes.md"
+
+    # ==========================================================================
+    # LIFECYCLE MANAGEMENT
+    # ==========================================================================
+
+    lifecycle_management:
+      browser_lifecycle:
+        setup: |
+          ```typescript
+          test.beforeAll(async () => {
+            browser = await connectRemoteBrowser(); // With retry logic
+            const contexts = browser.contexts();
+            context = contexts.length > 0 ? contexts[0] : await browser.newContext({
+              viewport: { width: 1920, height: 1080 },
+            });
+          });
+          ```
+        
+        teardown: |
+          ```typescript
+          test.afterAll(async () => {
+            if (context) await context.close();
+            if (browser) await browser.close();
+          });
+          ```
+      
+      page_lifecycle:
+        per_test: |
+          ```typescript
+          test('TC-001', async () => {
+            const page = await context.newPage();
+            try {
+              // Test logic...
+            } finally {
+              await page.close(); // Always cleanup
+            }
+          });
+          ```
+      
+      dev_server_lifecycle:
+        start: |
+          If BASE_URL not reachable:
+          1. Check package.json for "dev" or "start" script
+          2. Spawn: npm run dev (background process)
+          3. Track PID for cleanup
+          4. Wait up to 60s for server ready (poll BASE_URL)
+          5. On timeout: kill process and fail
+        
+        stop: |
+          In final cleanup (after all iterations):
+          1. If dev server was started by this process
+          2. Send SIGTERM to tracked PID
+          3. Wait 5s for graceful shutdown
+          4. If still running, send SIGKILL
+
+# ==============================================================================
+# END OF CONFIGURATION
+# ==============================================================================
