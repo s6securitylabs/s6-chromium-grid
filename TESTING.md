@@ -374,10 +374,190 @@ wait
 
 ---
 
+---
+
+## Automated Playwright Testing (NEW)
+
+### Overview
+
+**Added:** 2026-01-09
+
+Comprehensive end-to-end testing using Playwright:
+
+| Suite | File | Tests | Status |
+|:------|:-----|:------|:-------|
+| AI Prompt | `test-ai-prompt.spec.ts` | 7 | ✅ Complete |
+| Dynamic Mode | `test-dynamic-mode.spec.ts` | 20+ | 🆕 New |
+| Load Testing | `test-dynamic-load.spec.ts` | 5 | 🆕 New |
+
+### Prerequisites
+
+1. **Install dependencies:**
+   ```bash
+   npm install
+   npx playwright install
+   ```
+
+2. **Start S6 Chromium Grid with Dynamic Mode:**
+   ```bash
+   docker run -d \
+     --name s6-chromium-grid-test \
+     --cap-add NET_ADMIN --cap-add NET_RAW --cap-add SYS_ADMIN \
+     --shm-size=2g \
+     -p 8080:8080 \
+     -p 9222:9222 \
+     -e DYNAMIC_MODE=true \
+     -e MAX_DYNAMIC_INSTANCES=20 \
+     -e INSTANCE_TIMEOUT_MINUTES=30 \
+     -e DASHBOARD_USER=admin \
+     -e DASHBOARD_PASS=admin \
+     ghcr.io/s6securitylabs/s6-chromium-grid:latest
+   ```
+
+### Quick Test Run (5 minutes)
+
+```bash
+# Run all tests except expensive ones
+npx playwright test --grep-invert "skip"
+```
+
+**Tests:**
+- ✅ AI prompt customization
+- ✅ Dynamic mode basic functionality
+- ✅ Instance creation/reuse
+- ✅ Concurrent connections (5 instances)
+- ✅ API endpoints
+- ✅ Error handling
+
+### Full Test Run (30 minutes)
+
+```bash
+# Run everything including load tests
+npx playwright test
+```
+
+**Additional coverage:**
+- ✅ 20 instance stress test
+- ✅ Memory consumption analysis
+- ✅ Connection churn resilience
+- ✅ Mixed workload handling
+
+### Test Categories
+
+#### 1. Dynamic Mode - Basic Functionality
+
+**File:** `test-dynamic-mode.spec.ts`
+
+```bash
+npx playwright test test-dynamic-mode.spec.ts --grep "Basic Functionality"
+```
+
+Tests:
+- Instance creation on first connection (< 5s)
+- Instance reuse on subsequent connections (< 1s)
+- Valid/invalid project name validation
+- Project isolation (separate Chrome data)
+
+#### 2. Dynamic Mode - Performance & Scaling
+
+**File:** `test-dynamic-mode.spec.ts`
+
+```bash
+npx playwright test test-dynamic-mode.spec.ts --grep "Performance"
+```
+
+Tests:
+- Creation time measurement
+- Reuse time measurement
+- Concurrent connections (5 instances)
+- Rapid sequential creation (10 instances)
+
+#### 3. Dynamic Mode - Load Testing
+
+**File:** `test-dynamic-load.spec.ts`
+
+⚠️ **Resource intensive - 16GB RAM recommended**
+
+```bash
+npx playwright test test-dynamic-load.spec.ts
+```
+
+Tests:
+- 10 concurrent instances with load
+- 20 concurrent instances (at limit)
+- Memory consumption per instance
+- Connection churn (10 cycles)
+- Mixed workloads
+
+### Expected Results
+
+#### ✅ Should Pass
+- Instance creation in < 5 seconds
+- Instance reuse in < 1 second
+- Concurrent connections work
+- API endpoints return correct data
+- Invalid names rejected
+- Memory usage < 500MB per instance
+
+#### ⚠️ Known Issues (To Be Fixed)
+- **Hard failure at 20 instances** - Instance #21 fails with timeout
+- **No graceful degradation** - System doesn't auto-cleanup when nearing limit
+- **Performance degradation** - Last instances 50-100% slower
+- **Memory at limit** - May exceed 90% at 20 instances
+
+### Debugging Tests
+
+```bash
+# Run with Playwright Inspector
+npx playwright test --debug
+
+# Run specific test
+npx playwright test -g "should create instance on first connection"
+
+# Run with trace
+npx playwright test --trace on
+
+# View HTML report
+npx playwright show-report
+```
+
+### Test Output Examples
+
+**Successful Test:**
+```
+=== Creating 10 Instances ===
+✓ Created 10 instances in 25000ms
+  Average: 2500ms per instance
+
+System Metrics:
+  Memory: 3200MB / 16000MB (20%)
+  CPU: 15.42%
+  Instances: 10 running
+```
+
+**Known Failure (Expected - To Be Fixed):**
+```
+=== Testing Limit Behavior ===
+✓ Created 20 instances
+
+Attempting to exceed limit...
+✓ Overflow rejected after 5000ms
+  Error: TimeoutError
+
+Current Behavior:
+  Hard limit: YES  ← TO BE FIXED WITH AUTO-SCALING
+  Error type: TimeoutError
+  Response time: 5000ms
+```
+
+---
+
 ## Next Steps After Testing
 
 1. ✅ Verify all tests pass
 2. ✅ Review logs for errors
 3. ✅ Check system metrics
-4. ⏭️ Deploy to production
-5. ⏭️ Set up monitoring/alerts
+4. ✅ Run automated Playwright tests
+5. ✅ Document known issues for auto-scaling implementation
+6. ⏭️ Deploy to production
+7. ⏭️ Set up monitoring/alerts

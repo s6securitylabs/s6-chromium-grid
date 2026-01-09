@@ -10,15 +10,19 @@ const crypto = require('crypto');
 const DYNAMIC_MODE = process.env.DYNAMIC_MODE === 'true';
 let dynamicManager = null;
 let wsGateway = null;
+let metricsStore = null;
+
+// Initialize metrics store
+const MetricsStore = require('./metrics-store');
 
 if (DYNAMIC_MODE) {
     const DynamicInstanceManager = require('./dynamic-manager');
     const WebSocketGateway = require('./websocket-gateway');
-    
+
     const maxDynamicInstances = parseInt(process.env.MAX_DYNAMIC_INSTANCES || '20');
     const idleTimeoutMinutes = parseInt(process.env.INSTANCE_TIMEOUT_MINUTES || '30');
     const gatewayPort = parseInt(process.env.CDP_GATEWAY_PORT || '9222');
-    
+
     dynamicManager = new DynamicInstanceManager({
         maxInstances: maxDynamicInstances,
         idleTimeoutMinutes: idleTimeoutMinutes,
@@ -28,12 +32,16 @@ if (DYNAMIC_MODE) {
         screenWidth: process.env.SCREEN_WIDTH || '1920',
         screenHeight: process.env.SCREEN_HEIGHT || '1080'
     });
-    
+
     wsGateway = new WebSocketGateway(dynamicManager, { port: gatewayPort });
     wsGateway.start();
-    
+
     console.log(`[Dynamic Mode] Enabled - Gateway on port ${gatewayPort}`);
 }
+
+// Initialize metrics store (works in both static and dynamic mode)
+metricsStore = new MetricsStore('./data/metrics.db', dynamicManager);
+console.log('[Server] Metrics store initialized');
 
 const app = express();
 const PORT = process.env.DASHBOARD_PORT || 8080;
@@ -648,32 +656,66 @@ app.get('/api/metrics', async (req, res) => {
     }
 });
 
+// Historical metrics endpoint (NEW)
+app.get('/api/metrics/history', async (req, res) => {
+    try {
+        const hours = Math.min(parseInt(req.query.hours) || 1, 168); // Max 7 days
+        const data = await metricsStore.getRecent(hours);
+        res.json({ data, count: data.length });
+    } catch (err) {
+        console.error('[Metrics] History error:', err);
+        res.status(500).json({ error: 'Failed to fetch historical metrics' });
+    }
+});
+
+// Export metrics endpoint (NEW)
+app.get('/api/metrics/export', async (req, res) => {
+    try {
+        const format = req.query.format || 'json';
+        const hours = Math.min(parseInt(req.query.hours) || 24, 168);
+
+        const data = await metricsStore.export(format, hours);
+
+        if (format === 'csv') {
+            res.setHeader('Content-Type', 'text/csv');
+            res.setHeader('Content-Disposition', `attachment; filename="metrics-${Date.now()}.csv"`);
+        } else {
+            res.setHeader('Content-Type', 'application/json');
+        }
+
+        res.send(data);
+    } catch (err) {
+        console.error('[Metrics] Export error:', err);
+        res.status(500).json({ error: 'Failed to export metrics' });
+    }
+});
+
 app.get('/api/instance/:id/metrics', async (req, res) => {
     try {
         const id = parseInt(req.params.id);
         const dataDir = `/data/instance-${id}`;
-        
+
         const pidCmd = `pgrep -f "user-data-dir=${dataDir}" | head -1`;
         const { stdout: pidOut } = await runCommand(pidCmd);
         const pid = pidOut.trim();
-        
+
         if (!pid) {
-            return res.json({ 
-                cpu: 0, 
-                memory: 0, 
-                running: false 
+            return res.json({
+                cpu: 0,
+                memory: 0,
+                running: false
             });
         }
-        
+
         const cpuCmd = `ps -p ${pid} -o %cpu --no-headers`;
         const { stdout: cpuOut } = await runCommand(cpuCmd);
         const cpuUsage = parseFloat(cpuOut.trim()) || 0;
-        
+
         const memCmd = `ps -p ${pid} -o rss --no-headers`;
         const { stdout: memOut } = await runCommand(memCmd);
         const memKB = parseInt(memOut.trim()) || 0;
         const memBytes = memKB * 1024;
-        
+
         res.json({
             cpu: cpuUsage.toFixed(1),
             memory: memBytes,

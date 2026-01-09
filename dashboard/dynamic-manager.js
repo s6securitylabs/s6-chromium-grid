@@ -117,15 +117,17 @@ class DynamicInstanceManager {
         
         // Check if instance exists
         if (this.instances.has(projectName)) {
-            const instance = this.instances.get(projectName);
+            let instance = this.instances.get(projectName);
             instance.lastActivity = Date.now();
-            
+
             // If stopped, start it
             if (instance.status === 'stopped' || instance.status === 'error') {
                 console.log(`[DynamicManager] Restarting existing instance: ${projectName}`);
                 await this.startInstance(projectName);
+                // Get updated instance with new port
+                instance = this.instances.get(projectName);
             }
-            
+
             console.log(`[DynamicManager] Returning existing instance: ${projectName} (CDP: ${instance.cdpPort})`);
             return instance;
         }
