@@ -3,7 +3,7 @@
 [![Build and Push](https://github.com/s6securitylabs/s6-chromium-grid/actions/workflows/build-push.yml/badge.svg)](https://github.com/s6securitylabs/s6-chromium-grid/actions/workflows/build-push.yml)
 [![GHCR](https://img.shields.io/badge/GHCR-s6--chromium--grid-blue?logo=github)](https://github.com/s6securitylabs/s6-chromium-grid/pkgs/container/s6-chromium-grid)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Version](https://img.shields.io/badge/version-2.0.0--beta4-orange.svg)](https://github.com/s6securitylabs/s6-chromium-grid/releases)
+[![Version](https://img.shields.io/badge/version-2.0.0--beta5-orange.svg)](https://github.com/s6securitylabs/s6-chromium-grid/releases)
 
 **Production-ready multi-instance headless Chromium environment for browser automation, E2E testing, and web scraping.**
 

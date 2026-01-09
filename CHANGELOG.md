@@ -5,6 +5,23 @@ All notable changes to S6 Chromium Grid will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.0-beta5] - 2026-01-09
+
+### Fixed
+- **Critical JavaScript Syntax Error** - Fixed dashboard loading issue
+  - Removed duplicate catch block in `restartInstance()` function (line 1143)
+  - Dashboard now loads correctly without "Unexpected token '}'" error
+  - Resolved "Loading..." stuck state
+
+### Changed
+- **INITIAL_INSTANCE_COUNT** - Changed default from 2 to 1
+  - Always starts with 1 instance running for manual testing
+  - Updated `entrypoint.sh` default: `INITIAL_INSTANCE_COUNT="${INITIAL_INSTANCE_COUNT:-1}"`
+  - Updated `.env.example` to reflect new default
+  - Ensures there's always an instance available for testing without needing to start one manually
+
+---
+
 ## [2.0.0-beta4] - 2026-01-09
 
 ### Added

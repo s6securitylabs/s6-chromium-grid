@@ -655,7 +655,7 @@
                 </g>
             </svg>
             <span style="color: #888; font-weight: 300; font-size: 1.2rem; margin-left: 0.5rem;">Chromium Grid</span>
-                <span class="version-badge">v2.0.0-beta4</span>
+                <span class="version-badge">v2.0.0-beta5</span>
         </div>
         <div class="header-actions">
             <div class="system-metrics">
@@ -1139,11 +1139,6 @@
             } catch (err) {
                 showToast('Failed to restart instance', 'error');
             }
-        }
-            } catch (err) {
-                showToast('Failed to restart instance', 'error');
-            }
-            card.classList.remove('loading');
         }
         
         async function stopInstance(id) {
