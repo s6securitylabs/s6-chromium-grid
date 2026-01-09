@@ -655,7 +655,7 @@
                 </g>
             </svg>
             <span style="color: #888; font-weight: 300; font-size: 1.2rem; margin-left: 0.5rem;">Chromium Grid</span>
-                <span class="version-badge">v2.0.0-beta2</span>
+                <span class="version-badge">v2.0.0-beta3</span>
         </div>
         <div class="header-actions">
             <div class="system-metrics">
@@ -875,48 +875,24 @@
 
     <script>
         let instances = [];
-        let refreshInterval;
-        let metricsInterval;
-        let recordingDurationIntervals = new Map();
-        let recordingSettings = {
-            fps: 15,
-            quality: 23,
-            scale: '1280:720',
-            maxSize: 1073741824
-        };
+        let refreshInterval = null;
+        let autoRefresh = false;
+        let metricsInterval = null;
+        let dynamicMode = false;
+        let externalPortPrefix = 0;
         
-        const DEFAULT_AI_PROMPT = `I need you to write Playwright tests that connect to a remote Chrome browser instance.
-
-Connection Details:
-- CDP Endpoint: {ENDPOINT}
-- Instance ID: {INSTANCE_ID}
-
-Requirements:
-1. Connect using Playwright's connectOverCDP()
-2. Write comprehensive E2E tests for the target application
-3. Include proper error handling and screenshots
-4. Handle authentication if needed
-
-Example connection code:
-\`\`\`typescript
-import { chromium } from 'playwright';
-
-const browser = await chromium.connectOverCDP('{ENDPOINT}');
-const context = await browser.contexts()[0];
-const page = await context.newPage();
-
-// Your tests here
-await page.goto('https://example.com');
-await page.screenshot({ path: 'test.png' });
-
-await browser.close();
-\`\`\`
-
-Please write tests for: [describe your test scenarios]`;
-        
-        function getVncUrl(wsPort) {
-            const host = window.location.hostname;
-            return `/novnc/vnc.html?host=${host}&port=${wsPort}&autoconnect=true&resize=scale&reconnect=true&reconnect_delay=1000`;
+        async function loadStatus() {
+            try {
+                const res = await fetch('/api/status');
+                const data = await res.json();
+                instances = data.instances || [];
+                dynamicMode = data.dynamicMode || false;
+                externalPortPrefix = data.externalPortPrefix || 0;
+                renderInstances();
+                updateHeader(data);
+            } catch (err) {
+                console.error('Failed to load status:', err);
+            }
         }
         
         function getInstanceName(id) {
@@ -1139,17 +1115,31 @@ Please write tests for: [describe your test scenarios]`;
         }
         
         async function restartInstance(id) {
-            const card = document.getElementById(`card-${id}`);
-            card.classList.add('loading');
+            const instanceName = getInstanceName(id);
+            const wasDefaultName = instanceName === `Instance ${id}`;
+            
+            if (!confirm(`Restart ${instanceName}?`)) return;
+            
             try {
                 const res = await fetch(`/api/instance/${id}/restart`, { method: 'POST' });
                 const data = await res.json();
                 if (data.success) {
-                    showToast(`Instance ${id} restarted`, 'success');
+                    showToast(`${instanceName} restarted`, 'success');
+                    
+                    if (data.autoRename && wasDefaultName) {
+                        const newName = `instance-${id}`;
+                        localStorage.setItem('instance-name-' + id, newName);
+                        showToast(`Auto-renamed to "${newName}"`, 'info');
+                    }
+                    
                     await loadStatus();
                 } else {
                     showToast(data.error || 'Failed to restart', 'error');
                 }
+            } catch (err) {
+                showToast('Failed to restart instance', 'error');
+            }
+        }
             } catch (err) {
                 showToast('Failed to restart instance', 'error');
             }
@@ -1211,9 +1201,14 @@ Please write tests for: [describe your test scenarios]`;
         
         function copyEndpoint(instanceId, port) {
             const cdpHost = localStorage.getItem('cdp-custom-host') || window.location.hostname;
-            const url = `ws://${cdpHost}:${port}`;
+            let url = `ws://${cdpHost}:${port}`;
             
-            // Check if modern clipboard API is available
+            if (dynamicMode) {
+                const instanceName = getInstanceName(instanceId);
+                const projectName = instanceName.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+                url = `${url}/${projectName}/`;
+            }
+            
             if (navigator.clipboard && navigator.clipboard.writeText) {
                 navigator.clipboard.writeText(url).then(() => {
                     showToast(`✓ Copied to clipboard: ${url}`, 'success');
@@ -1222,7 +1217,6 @@ Please write tests for: [describe your test scenarios]`;
                     copyToClipboardFallback(url);
                 });
             } else {
-                // Fallback for browsers without clipboard API
                 copyToClipboardFallback(url);
             }
         }

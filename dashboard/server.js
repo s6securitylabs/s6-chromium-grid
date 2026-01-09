@@ -171,7 +171,9 @@ app.get('/api/status', async (req, res) => {
     res.json({
         total: INSTANCE_COUNT,
         running: instances.filter(i => i.status === 'running').length,
-        instances
+        instances,
+        dynamicMode: DYNAMIC_MODE,
+        externalPortPrefix: EXTERNAL_PORT_PREFIX
     });
 });
 
@@ -296,7 +298,12 @@ app.post('/api/instance/:id/restart', async (req, res) => {
         
         const status = await getInstanceStatus(index);
         console.log(`[API] Instance ${id} status after restart: ${status.status}`);
-        res.json({ success: true, instance: status });
+        
+        if (status.status === 'running') {
+            console.log(`[API] Instance ${id} started successfully, triggering auto-rename`);
+        }
+        
+        res.json({ success: true, instance: status, autoRename: true });
     } catch (err) {
         console.error(`[API] Restart instance ${id} error:`, err.message);
         res.status(500).json({ error: err.message });

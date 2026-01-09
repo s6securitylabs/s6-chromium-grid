@@ -3,6 +3,7 @@ set -e
 
 DYNAMIC_MODE="${DYNAMIC_MODE:-false}"
 INSTANCE_COUNT="${INSTANCE_COUNT:-5}"
+INITIAL_INSTANCE_COUNT="${INITIAL_INSTANCE_COUNT:-2}"
 ENABLE_VNC="${ENABLE_VNC:-true}"
 SCREEN_WIDTH="${SCREEN_WIDTH:-1920}"
 SCREEN_HEIGHT="${SCREEN_HEIGHT:-1080}"
@@ -25,7 +26,7 @@ mkdir -p "/data"
 chmod 777 "/data"
 chown -R chrome:chrome "/data" 2>/dev/null || true
 
-export DYNAMIC_MODE INSTANCE_COUNT BASE_CDP_PORT BASE_VNC_PORT DASHBOARD_PORT DASHBOARD_USER DASHBOARD_PASS EXTERNAL_PORT_PREFIX LOG_DIR MAX_DYNAMIC_INSTANCES INSTANCE_TIMEOUT_MINUTES CDP_GATEWAY_PORT SCREEN_WIDTH SCREEN_HEIGHT USE_GPU
+export DYNAMIC_MODE INSTANCE_COUNT INITIAL_INSTANCE_COUNT BASE_CDP_PORT BASE_VNC_PORT DASHBOARD_PORT DASHBOARD_USER DASHBOARD_PASS EXTERNAL_PORT_PREFIX LOG_DIR MAX_DYNAMIC_INSTANCES INSTANCE_TIMEOUT_MINUTES CDP_GATEWAY_PORT SCREEN_WIDTH SCREEN_HEIGHT USE_GPU
 
 log() {
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*" | tee -a "$LOG_DIR/entrypoint.log"
@@ -64,9 +65,10 @@ if [ "$DYNAMIC_MODE" = "true" ]; then
     log "Dynamic mode enabled - instances will be created on-demand"
     log "Skipping static instance creation"
 else
-    log "Starting $INSTANCE_COUNT browser instances..."
+    log "Starting $INITIAL_INSTANCE_COUNT of $INSTANCE_COUNT browser instances initially..."
+    log "Additional instances can be started from dashboard as needed"
     
-    for i in $(seq 1 "$INSTANCE_COUNT"); do
+    for i in $(seq 1 "$INITIAL_INSTANCE_COUNT"); do
     DISPLAY_NUM=$((99 + i))
     CDP_PORT=$((BASE_CDP_PORT + i - 1))
     VNC_PORT=$((BASE_VNC_PORT + i - 1))
@@ -126,9 +128,10 @@ else
     sleep 0.5
     done
     
-    log "All $INSTANCE_COUNT instances started"
-    log "CDP ports: $BASE_CDP_PORT-$((BASE_CDP_PORT + INSTANCE_COUNT - 1))"
-    log "VNC ports: $BASE_VNC_PORT-$((BASE_VNC_PORT + INSTANCE_COUNT - 1))"
+    log "Started $INITIAL_INSTANCE_COUNT instances"
+    log "Remaining $((INSTANCE_COUNT - INITIAL_INSTANCE_COUNT)) instances available as placeholders"
+    log "CDP ports (all): $BASE_CDP_PORT-$((BASE_CDP_PORT + INSTANCE_COUNT - 1))"
+    log "VNC ports (all): $BASE_VNC_PORT-$((BASE_VNC_PORT + INSTANCE_COUNT - 1))"
 fi
 
 log "Starting dashboard on port $DASHBOARD_PORT..."

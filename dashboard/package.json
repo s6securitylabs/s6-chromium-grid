@@ -1,6 +1,6 @@
 {
   "name": "s6-chromium-grid-dashboard",
-  "version": "2.0.0-beta2",
+  "version": "2.0.0-beta3",
   "private": true,
   "scripts": {
     "start": "node server.js"

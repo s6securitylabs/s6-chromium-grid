@@ -5,6 +5,34 @@ All notable changes to S6 Chromium Grid will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.0-beta3] - 2026-01-09
+
+### Added
+- **Smart Instance Provisioning** - Start only 2 instances initially, rest are placeholders
+  - New `INITIAL_INSTANCE_COUNT` environment variable (default: 2)
+  - Reduces startup time and resource usage for large instance counts
+  - Remaining instances shown as placeholders in dashboard grid
+  - Auto-rename logic for placeholder instances on first start
+  - When starting a placeholder instance, it auto-renames to `instance-{id}`
+  - Toast notification confirms auto-rename action
+
+### Changed
+- **Dynamic Mode CDP URLs** - Enhanced URL format with project path
+  - CDP endpoint copy in dynamic mode now appends `/{project-name}/` to URL
+  - Instance names automatically converted to URL-safe format (lowercase, hyphens, alphanumeric)
+  - Example: Instance "My Project" → `ws://host:9222/my-project/`
+  - Dashboard API `/api/status` now returns `dynamicMode` flag
+  - Copy endpoint button detects mode and formats URL accordingly
+
+### Technical
+- Entrypoint startup loop uses `INITIAL_INSTANCE_COUNT` instead of `INSTANCE_COUNT`
+- Dashboard tracks `dynamicMode` and `externalPortPrefix` from API response
+- `restartInstance()` function checks for default names and auto-renames on success
+- Updated `.env.example` with `INITIAL_INSTANCE_COUNT=2`
+- Logging shows placeholder count during startup
+
+---
+
 ## [2.0.0-beta2] - 2026-01-09
 
 ### Changed
