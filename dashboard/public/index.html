@@ -655,7 +655,7 @@
                 </g>
             </svg>
             <span style="color: #888; font-weight: 300; font-size: 1.2rem; margin-left: 0.5rem;">Chromium Grid</span>
-                <span class="version-badge">v2.2.1</span>
+                <span class="version-badge">v2.2.2</span>
         </div>
         <div class="header-actions">
             <div class="system-metrics">
@@ -880,7 +880,23 @@
         let metricsInterval = null;
         let dynamicMode = false;
         let externalPortPrefix = 0;
-        
+
+        // Recording settings with defaults
+        let recordingSettings = {
+            fps: 30,
+            quality: 80,
+            scale: '1.0',
+            maxSize: 500 * 1024 * 1024  // 500MB default
+        };
+
+        // Helper function to get VNC URL
+        function getVncUrl(wsPort) {
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const host = window.location.hostname;
+            const port = window.location.port ? ':' + window.location.port : '';
+            return `/novnc/vnc.html?host=${host}&port=${wsPort}&autoconnect=true`;
+        }
+
         async function loadStatus() {
             try {
                 const res = await fetch('/api/status');
