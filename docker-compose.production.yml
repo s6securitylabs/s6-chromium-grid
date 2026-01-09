@@ -1,0 +1,127 @@
+version: '3.8'
+
+services:
+  # S6 Chromium Grid Dashboard
+  dashboard:
+    image: ghcr.io/s6securitylabs/s6-chromium-grid:2.2.0
+    container_name: s6-chromium-grid
+    hostname: s6-chromium-grid
+    restart: unless-stopped
+
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+      - SYS_ADMIN
+
+    shm_size: 2g
+
+    environment:
+      DASHBOARD_USER: ${DASHBOARD_USER:-admin}
+      DASHBOARD_PASS: ${DASHBOARD_PASS:-admin}
+      DASHBOARD_PORT: 8080
+      DYNAMIC_MODE: ${DYNAMIC_MODE:-false}
+      INSTANCE_COUNT: ${INSTANCE_COUNT:-10}
+      INITIAL_INSTANCE_COUNT: ${INITIAL_INSTANCE_COUNT:-1}
+      ENABLE_METRICS_HISTORY: ${ENABLE_METRICS_HISTORY:-true}
+      METRICS_RETENTION_DAYS: ${METRICS_RETENTION_DAYS:-7}
+      METRICS_INTERVAL_SECONDS: ${METRICS_INTERVAL_SECONDS:-5}
+      ENABLE_VNC: ${ENABLE_VNC:-true}
+      USE_GPU: ${USE_GPU:-false}
+      SCREEN_WIDTH: ${SCREEN_WIDTH:-1920}
+      SCREEN_HEIGHT: ${SCREEN_HEIGHT:-1080}
+      TZ: ${TZ:-Australia/Adelaide}
+      LANG: en_US.UTF-8
+
+    # Internal ports only - accessed via NGINX
+    expose:
+      - "8080"
+
+    # CDP ports exposed directly (no HTTPS needed for CDP)
+    ports:
+      - "${CDP_PORT_START:-9222}:9222"
+      - "9223:9223"
+      - "9224:9224"
+      - "9225:9225"
+      - "9226:9226"
+      - "9227:9227"
+      - "9228:9228"
+      - "9229:9229"
+      - "9230:9230"
+      - "9231:9231"
+
+    volumes:
+      - chromium-data:/data
+      - chromium-recordings:/recordings
+
+    networks:
+      - s6-grid
+
+    deploy:
+      resources:
+        limits:
+          cpus: '${CPU_LIMIT:-4}'
+          memory: ${MEMORY_LIMIT:-16g}
+        reservations:
+          cpus: '${CPU_RESERVATION:-1}'
+          memory: ${MEMORY_RESERVATION:-2g}
+
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/api/status"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  # NGINX Reverse Proxy (HTTPS + HTTP redirect)
+  nginx:
+    build:
+      context: ./nginx
+      dockerfile: Dockerfile
+    container_name: s6-nginx
+    hostname: s6-nginx
+    restart: unless-stopped
+
+    environment:
+      # SSL Certificate configuration
+      SSL_CN: ${SSL_CN:-s6-chromium-grid.lan.sweet6.net}
+      SSL_DAYS: ${SSL_DAYS:-3650}
+
+    ports:
+      - "80:80"      # HTTP (redirects to HTTPS)
+      - "443:443"    # HTTPS
+
+    volumes:
+      # Persist SSL certificates across container restarts
+      - nginx-ssl:/etc/nginx/ssl:rw
+      - nginx-logs:/var/log/nginx:rw
+
+    networks:
+      - s6-grid
+
+    depends_on:
+      dashboard:
+        condition: service_healthy
+
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost/health"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
+
+volumes:
+  chromium-data:
+    driver: local
+  chromium-recordings:
+    driver: local
+  nginx-ssl:
+    driver: local
+  nginx-logs:
+    driver: local
+
+networks:
+  s6-grid:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.28.0.0/16
