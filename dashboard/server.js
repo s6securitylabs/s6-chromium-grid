@@ -656,6 +656,84 @@ app.get('/api/metrics', async (req, res) => {
     }
 });
 
+// SSE connection manager
+const sseClients = new Set();
+const SSE_MAX_CLIENTS = 50;
+
+// Server-Sent Events stream endpoint (NEW)
+app.get('/api/metrics/stream', (req, res) => {
+    if (sseClients.size >= SSE_MAX_CLIENTS) {
+        return res.status(503).json({ error: 'Too many active connections' });
+    }
+
+    // Set SSE headers
+    res.writeHead(200, {
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache',
+        'Connection': 'keep-alive',
+        'X-Accel-Buffering': 'no' // Disable nginx buffering
+    });
+
+    // Send initial connected message
+    res.write('data: ' + JSON.stringify({ type: 'connected' }) + '\n\n');
+
+    // Add client to set
+    sseClients.add(res);
+    console.log(`[SSE] Client connected (${sseClients.size} total)`);
+
+    // Heartbeat to keep connection alive
+    const heartbeat = setInterval(() => {
+        try {
+            res.write(': heartbeat\n\n');
+        } catch (err) {
+            clearInterval(heartbeat);
+            sseClients.delete(res);
+        }
+    }, 30000);
+
+    // Cleanup on disconnect
+    req.on('close', () => {
+        clearInterval(heartbeat);
+        sseClients.delete(res);
+        console.log(`[SSE] Client disconnected (${sseClients.size} remaining)`);
+    });
+});
+
+// Broadcast metrics to all SSE clients (called by collection interval)
+function broadcastMetrics(metrics) {
+    const data = JSON.stringify({ type: 'metrics', data: metrics });
+    const message = 'data: ' + data + '\n\n';
+
+    const deadClients = [];
+    for (const client of sseClients) {
+        try {
+            client.write(message);
+        } catch (err) {
+            // Client disconnected, mark for cleanup
+            deadClients.push(client);
+        }
+    }
+
+    // Remove dead clients
+    deadClients.forEach(client => sseClients.delete(client));
+}
+
+// Hook into metrics collection (broadcast every time we collect)
+setInterval(async () => {
+    if (sseClients.size > 0 && metricsStore) {
+        try {
+            const latest = await metricsStore.dbGet(
+                'SELECT * FROM metrics ORDER BY timestamp DESC LIMIT 1'
+            );
+            if (latest) {
+                broadcastMetrics(latest);
+            }
+        } catch (err) {
+            console.error('[SSE] Broadcast error:', err.message);
+        }
+    }
+}, 5000);
+
 // Historical metrics endpoint (NEW)
 app.get('/api/metrics/history', async (req, res) => {
     try {
