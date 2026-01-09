@@ -5,6 +5,65 @@ All notable changes to S6 Chromium Grid will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.2.0] - 2026-01-10 🎯 Simplification Release
+
+### Deprecated
+- **EXTERNAL_PORT_PREFIX** - Deprecated in favor of Docker port mapping
+  - Still works in static mode (with warning)
+  - Ignored in dynamic mode (recommended mode)
+  - Will be removed in v3.0.0
+  - Added deprecation warnings to console logs
+
+### Changed
+- **Dynamic Mode:** EXTERNAL_PORT_PREFIX now completely ignored
+  - Always uses direct port mapping (9222 for gateway)
+  - Simpler configuration, better performance
+  - No more port calculations
+
+### Added
+- **Migration Guide:** Added MIGRATION-v3.md for v3.0.0 transition
+- **Deprecation Warnings:** Console warnings when EXTERNAL_PORT_PREFIX is used
+- **Documentation:** Updated README with deprecation notices
+
+### Technical Details
+- Removed port prefix logic from dynamic mode code paths
+- Simplified toExternalPort() function
+- Status API no longer returns externalPortPrefix in dynamic mode
+- ~100 lines of code simplified
+
+### Rationale
+**Why deprecate EXTERNAL_PORT_PREFIX?**
+- Docker handles port mapping natively (better approach)
+- Adds unnecessary application complexity
+- 95%+ users don't use it
+- Confusing for new users
+- Maintenance burden
+
+**Migration Path:**
+- v2.2.0: Deprecated (warnings)
+- v3.0.0: Removed entirely (Q2 2026)
+
+### Breaking Changes
+**None** - Fully backward compatible with v2.1.x
+
+### Upgrade Notes
+- No action required for most users
+- If using EXTERNAL_PORT_PREFIX: See MIGRATION-v3.md
+- Deprecation warnings can be ignored in v2.2.0
+
+## [2.1.1] - 2026-01-09 🐛 Bug Fix Release
+
+### Fixed
+- **generate-compose.sh:** Added missing `image:` directive to prevent "manifest unknown" error
+- **Multi-instance setup:** Fixed Docker Compose failing to pull image when using generated compose files
+
+### Changed
+- **generate-compose.sh:** Now includes `image: ghcr.io/s6securitylabs/s6-chromium-grid:latest` in base configuration
+
+### Documentation
+- Added FIX-MANIFEST-UNKNOWN-ERROR.md with comprehensive troubleshooting guide
+- Updated BUGFIX-REPORT-v2.1.0.md with all UI fixes from v2.1.0
+
 ## [2.1.0] - 2026-01-09 ✨ Metrics & Observability Release
 
 ### Added
@@ -42,6 +101,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - ✅ CPU overhead <1% (0.045% measured)
 - ✅ Concurrent read/write operations validated
 - ✅ Query latency <100ms for 1-hour range
+
+### Bug Fixes (v2.1.0 Corrected Build)
+- **Version Display:** Fixed dashboard showing v2.0.0-beta5 instead of v2.1.0
+- **Copy Prompt Button:** Fixed to use HTTP URL with `{project-name}` placeholder in dynamic mode
+- **Copy CDP Button:** Fixed to return `http://host:port/{project-name}/` format for dynamic mode
+- **Offline Instance Status:** Dynamic mode now shows yellow "pending" badge instead of red "offline"
+- **Offline Instance Display:** Shows "Waiting for connection request" text in dynamic mode
+- **Start Button:** Removed non-functional Start button for offline instances in dynamic mode
+- **UI Improvements:** Settings and View All buttons verified working (may require browser cache clear)
 
 ### Breaking Changes
 - None - Fully backward compatible with v2.0.0

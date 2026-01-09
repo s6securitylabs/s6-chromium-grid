@@ -655,7 +655,7 @@
                 </g>
             </svg>
             <span style="color: #888; font-weight: 300; font-size: 1.2rem; margin-left: 0.5rem;">Chromium Grid</span>
-                <span class="version-badge">v2.0.0-beta5</span>
+                <span class="version-badge">v2.2.0</span>
         </div>
         <div class="header-actions">
             <div class="system-metrics">
@@ -1047,22 +1047,37 @@
         function renderInstances() {
             const container = document.getElementById('instances');
             container.innerHTML = instances.map(inst => {
-                const previewContent = inst.status === 'running'
-                    ? `<div class="vnc-placeholder clickable" onclick="openVNC(${inst.id}, ${inst.wsPort})" style="cursor: pointer; background: linear-gradient(135deg, #1e293b 0%, #334155 100%); display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 10px;">
+                // Determine preview content and status display
+                let previewContent, statusBadge, statusText;
+
+                if (inst.status === 'running') {
+                    previewContent = `<div class="vnc-placeholder clickable" onclick="openVNC(${inst.id}, ${inst.wsPort})" style="cursor: pointer; background: linear-gradient(135deg, #1e293b 0%, #334155 100%); display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 10px;">
                         <div style="font-size: 48px;">🖥️</div>
                         <div style="font-size: 16px; color: #94a3b8;">Click to View Browser</div>
-                       </div>`
-                    : `<div class="vnc-placeholder">Instance Offline</div>`;
-                
+                       </div>`;
+                    statusBadge = 'running';
+                    statusText = 'running';
+                } else if (dynamicMode) {
+                    // In dynamic mode, "offline" instances are actually pending/waiting
+                    previewContent = `<div class="vnc-placeholder">Waiting for connection request</div>`;
+                    statusBadge = 'partial';  // Use partial (yellow) instead of offline (red)
+                    statusText = 'pending';
+                } else {
+                    // Static mode offline
+                    previewContent = `<div class="vnc-placeholder">Instance Offline</div>`;
+                    statusBadge = 'offline';
+                    statusText = 'offline';
+                }
+
                 return `
                 <div class="card" id="card-${inst.id}">
                     <div class="card-header">
                         <div class="card-title">
-                            <span class="instance-status ${inst.status}"></span>
+                            <span class="instance-status ${statusBadge}"></span>
                             ${getInstanceName(inst.id)}
                             <span class="rename-icon" onclick="renameInstance(${inst.id})" title="Rename instance">✏️</span>
                         </div>
-                        <span class="status-badge ${inst.status}">${inst.status}</span>
+                        <span class="status-badge ${statusBadge}">${statusText}</span>
                     </div>
                     <div id="preview-${inst.id}">
                         ${previewContent}
@@ -1087,24 +1102,26 @@
                     </div>
                     <div class="card-actions">
                         ${inst.status === 'running' ? `
-                            <button class="btn ${inst.recording ? 'btn-danger' : 'btn-secondary'}" 
+                            <button class="btn ${inst.recording ? 'btn-danger' : 'btn-secondary'}"
                                     onclick="${inst.recording ? `stopRecording(${inst.id})` : `startRecording(${inst.id})`}">
                                 ${inst.recording ? '⏹️ Stop' : '🔴 Record'}
                             </button>
-                            
+
                             ${inst.recording ? `<span class="recording-status" id="recording-duration-${inst.id}">🔴 ${getRecordingDuration(inst.recordingStartTime)}</span>` : ''}
-                            
-                            <button class="btn ${inst.gpuEnabled ? 'btn-success' : 'btn-secondary'}" 
-                                    onclick="toggleGPU(${inst.id})" 
+
+                            <button class="btn ${inst.gpuEnabled ? 'btn-success' : 'btn-secondary'}"
+                                    onclick="toggleGPU(${inst.id})"
                                     title="Toggle GPU (requires restart)">
                                 🎮 ${inst.gpuEnabled ? 'ON' : 'OFF'}
                             </button>
-                            
+
                             <button class="btn btn-primary" onclick="openVNC(${inst.id}, ${inst.wsPort})">📹 View</button>
                             <button class="btn btn-secondary" onclick="copyEndpoint(${inst.id}, ${inst.cdpPort})" title="Copy WebSocket CDP endpoint">📋 Copy CDP</button>
                             <button class="btn btn-secondary" onclick="copyAIPrompt(${inst.id}, ${inst.cdpPort})" title="Copy AI testing prompt">📋 Copy Prompt</button>
                             <button class="btn btn-warning" onclick="restartInstance(${inst.id})" ${inst.recording ? 'disabled' : ''}>Restart</button>
                             <button class="btn btn-danger" onclick="stopInstance(${inst.id})" ${inst.recording ? 'disabled' : ''}>Stop</button>
+                        ` : dynamicMode ? `
+                            <p style="color: #94a3b8; text-align: center; padding: 1rem;">Instance will be created automatically when a client connects</p>
                         ` : `
                             <button class="btn btn-success" onclick="restartInstance(${inst.id})">Start</button>
                         `}
@@ -1196,14 +1213,16 @@
         
         function copyEndpoint(instanceId, port) {
             const cdpHost = localStorage.getItem('cdp-custom-host') || window.location.hostname;
-            let url = `ws://${cdpHost}:${port}`;
-            
+            let url;
+
             if (dynamicMode) {
-                const instanceName = getInstanceName(instanceId);
-                const projectName = instanceName.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
-                url = `${url}/${projectName}/`;
+                // For dynamic mode, use full HTTP URL with placeholder
+                url = `http://${cdpHost}:${port}/{project-name}/`;
+            } else {
+                // For static mode, use WebSocket URL
+                url = `ws://${cdpHost}:${port}`;
             }
-            
+
             if (navigator.clipboard && navigator.clipboard.writeText) {
                 navigator.clipboard.writeText(url).then(() => {
                     showToast(`✓ Copied to clipboard: ${url}`, 'success');
@@ -1374,11 +1393,19 @@
         
         function copyAIPrompt(instanceId, cdpPort) {
             const cdpHost = localStorage.getItem('cdp-custom-host') || window.location.hostname;
-            const endpoint = `ws://${cdpHost}:${cdpPort}`;
-            
+            let endpoint;
+
+            if (dynamicMode) {
+                // For dynamic mode, use HTTP URL with placeholder
+                endpoint = `http://${cdpHost}:${cdpPort}/{project-name}/`;
+            } else {
+                // For static mode, use WebSocket URL
+                endpoint = `ws://${cdpHost}:${cdpPort}`;
+            }
+
             // Get custom template from localStorage OR use default
             const template = localStorage.getItem('ai-prompt-template') || DEFAULT_AI_PROMPT;
-            
+
             // Replace all placeholders
             const prompt = template
                 .replace(/{ENDPOINT}/g, endpoint)

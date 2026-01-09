@@ -346,34 +346,29 @@ Copy directly to ChatGPT, Claude, or any AI assistant for instant test generatio
 | `DASHBOARD_PORT` | `8080` | Dashboard web server port |
 | `DASHBOARD_USER` | `admin` | Dashboard authentication username |
 | `DASHBOARD_PASS` | `admin` | Dashboard authentication password ⚠️ |
-| `EXTERNAL_PORT_PREFIX` | `0` | Port prefix multiplier (set to `1` for TrueNAS: 19222 = 1×10000 + 9222) |
+| `EXTERNAL_PORT_PREFIX` | `0` | ⚠️ **DEPRECATED** - Use Docker port mapping instead. Ignored in dynamic mode. |
 | `TZ` | `UTC` | Timezone (e.g., `America/New_York`) |
 
 ⚠️ **Security Warning:** Always change `DASHBOARD_PASS` in production!
 
-### Port Prefix Configuration
+### ~~Port Prefix Configuration~~ (DEPRECATED)
 
-When deploying to environments with port conflicts (e.g., TrueNAS), use `EXTERNAL_PORT_PREFIX` to add a prefix:
-
-**With `EXTERNAL_PORT_PREFIX=1`:**
-- CDP ports become: 19222-19226 (instead of 9222-9226)
-- VNC ports become: 15900-15904 (instead of 5900-5904)
-- WebSocket ports become: 16080-16084 (instead of 6080-6084)
-- Dashboard port: 18080 (instead of 8080)
-
-**Formula:** `External Port = (EXTERNAL_PORT_PREFIX × 10000) + Internal Port`
-
-**Docker port mapping example for prefix=1:**
-```yaml
-ports:
-  - "18080:8080"   # Dashboard
-  - "19222:9222"   # CDP instance 1
-  - "19223:9223"   # CDP instance 2
-  - "15900:5900"   # VNC instance 1
-  - "16080:6080"   # WebSocket instance 1
-```
-
-The dashboard automatically displays the correct external ports when `EXTERNAL_PORT_PREFIX` is set.
+> ⚠️ **DEPRECATED:** `EXTERNAL_PORT_PREFIX` is deprecated and will be removed in v3.0.0.
+>
+> **Use Docker port mapping instead:**
+> ```yaml
+> ports:
+>   - "19222:9222"  # Map external port 19222 to internal port 9222
+>   - "18080:8080"  # Map external port 18080 to internal port 8080
+> ```
+>
+> **Why deprecated:**
+> - Docker handles port mapping natively
+> - Adds unnecessary complexity
+> - Ignored in dynamic mode (recommended mode)
+> - Confusing for users
+>
+> **Migration:** Remove `EXTERNAL_PORT_PREFIX` from your configuration and use Docker's `-p` flag or `ports:` in docker-compose.yml.
 
 ### Port Mapping
 

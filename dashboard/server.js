@@ -56,6 +56,16 @@ const NOVNC_PATH = '/opt/novnc';
 const SCREENSHOT_DIR = '/tmp/screenshots';
 const RECORDING_DIR = '/recordings';
 
+// Deprecation warning for EXTERNAL_PORT_PREFIX
+if (EXTERNAL_PORT_PREFIX !== 0) {
+    console.warn('');
+    console.warn('⚠️  [DEPRECATED] EXTERNAL_PORT_PREFIX is deprecated and will be removed in v3.0.0');
+    console.warn('⚠️  Use Docker port mapping instead: -p 19222:9222');
+    console.warn('⚠️  In dynamic mode, EXTERNAL_PORT_PREFIX is ignored.');
+    console.warn('⚠️  Migration guide: https://github.com/s6securitylabs/s6-chromium-grid/blob/main/MIGRATION-v3.md');
+    console.warn('');
+}
+
 const websockifyProcesses = new Map();
 const screenshotCache = new Map();
 const recordingProcesses = new Map();
@@ -84,6 +94,12 @@ for (let i = 1; i <= INSTANCE_COUNT; i++) {
 }
 
 function toExternalPort(internalPort) {
+    // In dynamic mode, always use direct port mapping (no prefix)
+    if (DYNAMIC_MODE) {
+        return internalPort;
+    }
+
+    // Static mode: Keep prefix for backward compatibility (deprecated)
     if (EXTERNAL_PORT_PREFIX === 0) return internalPort;
     return EXTERNAL_PORT_PREFIX * 10000 + internalPort;
 }
@@ -176,13 +192,19 @@ app.get('/api/status', async (req, res) => {
     const instances = await Promise.all(
         Array.from({ length: INSTANCE_COUNT }, (_, i) => getInstanceStatus(i))
     );
-    res.json({
+    const response = {
         total: INSTANCE_COUNT,
         running: instances.filter(i => i.status === 'running').length,
         instances,
-        dynamicMode: DYNAMIC_MODE,
-        externalPortPrefix: EXTERNAL_PORT_PREFIX
-    });
+        dynamicMode: DYNAMIC_MODE
+    };
+
+    // Only include externalPortPrefix for static mode (deprecated)
+    if (!DYNAMIC_MODE) {
+        response.externalPortPrefix = EXTERNAL_PORT_PREFIX;
+    }
+
+    res.json(response);
 });
 
 app.get('/api/health', (req, res) => {
