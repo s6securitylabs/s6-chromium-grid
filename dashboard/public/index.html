@@ -889,20 +889,28 @@
             maxSize: 500 * 1024 * 1024  // 500MB default
         };
 
+        // Default AI prompt template for CDP automation
+        const DEFAULT_AI_PROMPT = `Connect to Chrome instance {INSTANCE_ID} via CDP at {CDP_ENDPOINT} and run automated tests.
+
+Available automation capabilities:
+- Navigate to URLs
+- Click elements and interact with the page
+- Fill forms and submit data
+- Take screenshots
+- Execute JavaScript
+- Wait for elements and conditions
+
+Please describe the automation task you want to perform.`;
+
         // Helper function to get VNC URL
-        // Now uses NGINX WebSocket proxy path instead of direct port connection
         function getVncUrl(wsPort) {
             // Calculate instance ID from websockify port (6080 = instance 0, 6081 = instance 1, etc.)
             const instanceId = wsPort - 6080;
 
-            // Use protocol-relative URL to match current page protocol (http/https)
-            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-            const host = window.location.host; // includes port if present
+            // Use RELATIVE path for noVNC - it will use the current page protocol/host
+            const wsPath = `/websockify/${instanceId}/websockify`;
 
-            // Path-based WebSocket routing through NGINX
-            const wsPath = `${protocol}//${host}/websockify/${instanceId}/websockify`;
-
-            // noVNC URL with WebSocket path
+            // noVNC URL with relative WebSocket path
             return `/novnc/vnc.html?path=${encodeURIComponent(wsPath)}&autoconnect=true&resize=scale`;
         }
 
