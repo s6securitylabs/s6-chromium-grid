@@ -16,24 +16,60 @@ set -e
 
 CERT_FILE="/etc/nginx/ssl/cert.pem"
 KEY_FILE="/etc/nginx/ssl/key.pem"
-CN="${SSL_CN:-s6-chromium-grid.lan.sweet6.net}"
+CN="${SSL_CN:-*.grid.sweet6.net}"
 DAYS="${SSL_DAYS:-3650}"
 
 if [ ! -f "$CERT_FILE" ] || [ ! -f "$KEY_FILE" ]; then
-    echo "=== Generating Self-Signed SSL Certificate ==="
+    echo "=== Generating Wildcard Self-Signed SSL Certificate ==="
     echo "Common Name: $CN"
     echo "Valid for: $DAYS days"
+
+    # Create temporary OpenSSL config for wildcard cert with SANs
+    cat > /tmp/ssl.conf <<SSLCONF
+[req]
+distinguished_name = req_distinguished_name
+x509_extensions = v3_req
+prompt = no
+
+[req_distinguished_name]
+C = AU
+ST = South Australia
+L = Adelaide
+O = S6 Security Labs
+OU = Chromium Grid
+CN = $CN
+
+[v3_req]
+keyUsage = keyEncipherment, dataEncipherment
+extendedKeyUsage = serverAuth
+subjectAltName = @alt_names
+
+[alt_names]
+DNS.1 = grid.sweet6.net
+DNS.2 = *.grid.sweet6.net
+DNS.3 = dashboard.grid.sweet6.net
+DNS.4 = instance0.grid.sweet6.net
+DNS.5 = instance1.grid.sweet6.net
+DNS.6 = instance2.grid.sweet6.net
+DNS.7 = instance3.grid.sweet6.net
+DNS.8 = instance4.grid.sweet6.net
+DNS.9 = instance5.grid.sweet6.net
+DNS.10 = instance6.grid.sweet6.net
+DNS.11 = instance7.grid.sweet6.net
+DNS.12 = instance8.grid.sweet6.net
+DNS.13 = instance9.grid.sweet6.net
+SSLCONF
 
     openssl req -x509 -nodes -days "$DAYS" \
         -newkey rsa:2048 \
         -keyout "$KEY_FILE" \
         -out "$CERT_FILE" \
-        -subj "/C=AU/ST=South Australia/L=Adelaide/O=S6 Security Labs/OU=Chromium Grid/CN=$CN" \
-        -addext "subjectAltName=DNS:$CN,DNS:*.lan.sweet6.net,DNS:localhost,IP:10.10.1.133"
+        -config /tmp/ssl.conf
 
+    rm /tmp/ssl.conf
     chmod 644 "$CERT_FILE"
     chmod 600 "$KEY_FILE"
-    echo "✓ Certificate generated successfully!"
+    echo "✓ Wildcard certificate generated for *.grid.sweet6.net!"
 else
     echo "✓ Certificate already exists"
 fi

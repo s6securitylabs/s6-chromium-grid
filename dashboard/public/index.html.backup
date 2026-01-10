@@ -655,7 +655,7 @@
                 </g>
             </svg>
             <span style="color: #888; font-weight: 300; font-size: 1.2rem; margin-left: 0.5rem;">Chromium Grid</span>
-                <span class="version-badge">v2.2.3</span>
+                <span class="version-badge">v2.2.0</span>
         </div>
         <div class="header-actions">
             <div class="system-metrics">
@@ -880,55 +880,7 @@
         let metricsInterval = null;
         let dynamicMode = false;
         let externalPortPrefix = 0;
-
-        // Recording settings with defaults
-        let recordingSettings = {
-            fps: 30,
-            quality: 80,
-            scale: '1.0',
-            maxSize: 500 * 1024 * 1024  // 500MB default
-        };
-
-        // Default AI prompt template for CDP automation
-        const DEFAULT_AI_PROMPT = `Connect to Chrome instance {INSTANCE_ID} via CDP at {CDP_ENDPOINT} and run automated tests.
-
-Available automation capabilities:
-- Navigate to URLs
-- Click elements and interact with the page
-- Fill forms and submit data
-- Take screenshots
-- Execute JavaScript
-- Wait for elements and conditions
-
-Please describe the automation task you want to perform.`;
-
-        // Helper function to get VNC URL using subdomain routing
-        function getVncUrl(wsPort, customName, instanceId) {
-            // Calculate instance ID from websockify port if not provided
-            const instId = instanceId || (wsPort - 6080);
-
-            // Base domain for subdomains
-            const baseDomain = 'grid.sweet6.net';
-
-            // Determine subdomain based on custom name or instance number
-            let subdomain;
-            if (customName && customName.trim()) {
-                // Use custom project name as subdomain (sanitize for DNS)
-                subdomain = customName.toLowerCase().replace(/[^a-z0-9-]/g, '-');
-            } else {
-                // Use instance number for static instances
-                subdomain = `instance${instId}`;
-            }
-
-            // Build full subdomain URL
-            const protocol = window.location.protocol; // http: or https:
-            const instanceUrl = `${protocol}//${subdomain}.${baseDomain}`;
-
-            // noVNC URL with WebSocket path (relative to subdomain)
-            // WebSocket will connect to wss://subdomain.grid.sweet6.net/websockify
-            return `${instanceUrl}/vnc.html?path=/websockify&autoconnect=true&resize=scale`;
-        }
-
+        
         async function loadStatus() {
             try {
                 const res = await fetch('/api/status');
@@ -1246,13 +1198,9 @@ Please describe the automation task you want to perform.`;
             const modal = document.getElementById('vnc-modal');
             const iframe = document.getElementById('vnc-iframe');
             const title = document.getElementById('modal-title');
-
-            // Get instance data to pass custom name
-            const instance = instances.find(inst => inst.id === id);
-            const customName = instance?.customName || '';
-
+            
             title.textContent = `${getInstanceName(id)} - Live View`;
-            iframe.src = getVncUrl(wsPort, customName, id);
+            iframe.src = getVncUrl(wsPort);
             modal.classList.add('active');
         }
         
@@ -1658,7 +1606,7 @@ Please describe the automation task you want to perform.`;
             
             grid.innerHTML = instances.map(inst => {
                 const frameContent = inst.status === 'running'
-                    ? `<iframe class="vnc-cell-frame" src="${getVncUrl(inst.wsPort, inst.customName, inst.id)}"></iframe>`
+                    ? `<iframe class="vnc-cell-frame" src="${getVncUrl(inst.wsPort)}"></iframe>`
                     : `<div class="vnc-cell-offline">Instance Offline</div>`;
                 
                 return `
@@ -1691,11 +1639,7 @@ Please describe the automation task you want to perform.`;
         }
         
         function popOutVNC(id, wsPort) {
-            // Get instance data to pass custom name
-            const instance = instances.find(inst => inst.id === id);
-            const customName = instance?.customName || '';
-
-            window.open(getVncUrl(wsPort, customName, id), `vnc-${id}`, 'width=1280,height=800');
+            window.open(getVncUrl(wsPort), `vnc-${id}`, 'width=1280,height=800');
         }
         
         function focusInstance(id, wsPort) {
@@ -1874,6 +1818,5 @@ Please describe the automation task you want to perform.`;
             });
         }, 1000);
     </script>
-    <script src="/app-fixed.js"></script>
 </body>
 </html>

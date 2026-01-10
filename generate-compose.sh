@@ -31,6 +31,7 @@ fi
 
 cat > "$OUTPUT_FILE" << HEADER
 x-chromium-base: &chromium-base
+  image: ghcr.io/s6securitylabs/s6-chromium-grid:latest
   build: .
   cap_add:
     - NET_ADMIN
