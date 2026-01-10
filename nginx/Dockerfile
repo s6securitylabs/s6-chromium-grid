@@ -16,7 +16,7 @@ set -e
 
 CERT_FILE="/etc/nginx/ssl/cert.pem"
 KEY_FILE="/etc/nginx/ssl/key.pem"
-CN="${SSL_CN:-*.grid.sweet6.net}"
+CN="${SSL_CN:-*.grid.s6securitylabs.com}"
 DAYS="${SSL_DAYS:-3650}"
 
 if [ ! -f "$CERT_FILE" ] || [ ! -f "$KEY_FILE" ]; then
@@ -45,19 +45,19 @@ extendedKeyUsage = serverAuth
 subjectAltName = @alt_names
 
 [alt_names]
-DNS.1 = grid.sweet6.net
-DNS.2 = *.grid.sweet6.net
-DNS.3 = dashboard.grid.sweet6.net
-DNS.4 = instance0.grid.sweet6.net
-DNS.5 = instance1.grid.sweet6.net
-DNS.6 = instance2.grid.sweet6.net
-DNS.7 = instance3.grid.sweet6.net
-DNS.8 = instance4.grid.sweet6.net
-DNS.9 = instance5.grid.sweet6.net
-DNS.10 = instance6.grid.sweet6.net
-DNS.11 = instance7.grid.sweet6.net
-DNS.12 = instance8.grid.sweet6.net
-DNS.13 = instance9.grid.sweet6.net
+DNS.1 = grid.s6securitylabs.com
+DNS.2 = *.grid.s6securitylabs.com
+DNS.3 = dashboard.grid.s6securitylabs.com
+DNS.4 = instance0.grid.s6securitylabs.com
+DNS.5 = instance1.grid.s6securitylabs.com
+DNS.6 = instance2.grid.s6securitylabs.com
+DNS.7 = instance3.grid.s6securitylabs.com
+DNS.8 = instance4.grid.s6securitylabs.com
+DNS.9 = instance5.grid.s6securitylabs.com
+DNS.10 = instance6.grid.s6securitylabs.com
+DNS.11 = instance7.grid.s6securitylabs.com
+DNS.12 = instance8.grid.s6securitylabs.com
+DNS.13 = instance9.grid.s6securitylabs.com
 SSLCONF
 
     openssl req -x509 -nodes -days "$DAYS" \
@@ -69,7 +69,7 @@ SSLCONF
     rm /tmp/ssl.conf
     chmod 644 "$CERT_FILE"
     chmod 600 "$KEY_FILE"
-    echo "✓ Wildcard certificate generated for *.grid.sweet6.net!"
+    echo "✓ Wildcard certificate generated for *.grid.s6securitylabs.com!"
 else
     echo "✓ Certificate already exists"
 fi

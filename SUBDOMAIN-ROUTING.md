@@ -14,24 +14,24 @@ S6 Chromium Grid now uses **subdomain-based routing** for cleaner URLs and bette
 
 ### Main Dashboard
 ```
-https://grid.sweet6.net              → Main dashboard
-https://dashboard.grid.sweet6.net    → Main dashboard (alternative)
+https://grid.s6securitylabs.com              → Main dashboard
+https://dashboard.grid.s6securitylabs.com    → Main dashboard (alternative)
 ```
 
 ### Static Instances (Numbered)
 ```
-https://instance0.grid.sweet6.net    → Instance 0 (VNC + noVNC)
-https://instance1.grid.sweet6.net    → Instance 1 (VNC + noVNC)
-https://instance2.grid.sweet6.net    → Instance 2 (VNC + noVNC)
+https://instance0.grid.s6securitylabs.com    → Instance 0 (VNC + noVNC)
+https://instance1.grid.s6securitylabs.com    → Instance 1 (VNC + noVNC)
+https://instance2.grid.s6securitylabs.com    → Instance 2 (VNC + noVNC)
 ...
-https://instance9.grid.sweet6.net    → Instance 9 (VNC + noVNC)
+https://instance9.grid.s6securitylabs.com    → Instance 9 (VNC + noVNC)
 ```
 
 ### Dynamic Projects (Named)
 ```
-https://testing.grid.sweet6.net      → Project "testing"
-https://production.grid.sweet6.net   → Project "production"
-https://myproject.grid.sweet6.net    → Project "myproject"
+https://testing.grid.s6securitylabs.com      → Project "testing"
+https://production.grid.s6securitylabs.com   → Project "production"
+https://myproject.grid.s6securitylabs.com    → Project "myproject"
 ```
 
 ## DNS Setup Required
@@ -41,8 +41,8 @@ https://myproject.grid.sweet6.net    → Project "myproject"
 Add this to your DNS server (Pi-hole, BIND, etc.):
 
 ```dns
-*.grid.sweet6.net    A    10.10.1.133
-grid.sweet6.net      A    10.10.1.133
+*.grid.s6securitylabs.com    A    10.10.1.133
+grid.s6securitylabs.com      A    10.10.1.133
 ```
 
 ### Verification
@@ -51,16 +51,16 @@ Test DNS resolution:
 
 ```bash
 # Test main domain
-dig grid.sweet6.net
-nslookup grid.sweet6.net
+dig grid.s6securitylabs.com
+nslookup grid.s6securitylabs.com
 
 # Test instance subdomains
-dig instance0.grid.sweet6.net
-dig instance1.grid.sweet6.net
+dig instance0.grid.s6securitylabs.com
+dig instance1.grid.s6securitylabs.com
 
 # Test custom project names
-dig testing.grid.sweet6.net
-dig myproject.grid.sweet6.net
+dig testing.grid.s6securitylabs.com
+dig myproject.grid.s6securitylabs.com
 
 # All should resolve to 10.10.1.133
 ```
@@ -105,7 +105,7 @@ For custom project names (e.g., "testing", "production"):
 VNC WebSocket connections:
 
 ```
-Client → wss://instance0.grid.sweet6.net/websockify
+Client → wss://instance0.grid.s6securitylabs.com/websockify
          ↓
 NGINX extracts "instance0" subdomain
          ↓
@@ -123,15 +123,15 @@ Websockify serves VNC over WebSocket
 The NGINX container auto-generates a **wildcard self-signed certificate**:
 
 ```
-CN: *.grid.sweet6.net
+CN: *.grid.s6securitylabs.com
 SAN:
-  - grid.sweet6.net
-  - *.grid.sweet6.net
-  - dashboard.grid.sweet6.net
-  - instance0.grid.sweet6.net
-  - instance1.grid.sweet6.net
+  - grid.s6securitylabs.com
+  - *.grid.s6securitylabs.com
+  - dashboard.grid.s6securitylabs.com
+  - instance0.grid.s6securitylabs.com
+  - instance1.grid.s6securitylabs.com
   ...
-  - instance9.grid.sweet6.net
+  - instance9.grid.s6securitylabs.com
 ```
 
 ### Valid for 10 years (3650 days)
@@ -142,16 +142,16 @@ For production with public DNS, use Let's Encrypt wildcard:
 
 ```bash
 certbot certonly --dns-cloudflare \
-  -d 'grid.sweet6.net' \
-  -d '*.grid.sweet6.net'
+  -d 'grid.s6securitylabs.com' \
+  -d '*.grid.s6securitylabs.com'
 ```
 
 Then mount the certificates in docker-compose:
 
 ```yaml
 volumes:
-  - /etc/letsencrypt/live/grid.sweet6.net/fullchain.pem:/etc/nginx/ssl/cert.pem:ro
-  - /etc/letsencrypt/live/grid.sweet6.net/privkey.pem:/etc/nginx/ssl/key.pem:ro
+  - /etc/letsencrypt/live/grid.s6securitylabs.com/fullchain.pem:/etc/nginx/ssl/cert.pem:ro
+  - /etc/letsencrypt/live/grid.s6securitylabs.com/privkey.pem:/etc/nginx/ssl/key.pem:ro
 ```
 
 ## Dashboard Changes
@@ -162,7 +162,7 @@ The dashboard generates subdomain URLs automatically:
 
 ```javascript
 function getVncUrl(wsPort, customName, instanceId) {
-    const baseDomain = 'grid.sweet6.net';
+    const baseDomain = 'grid.s6securitylabs.com';
 
     // Determine subdomain
     let subdomain;
@@ -185,19 +185,19 @@ function getVncUrl(wsPort, customName, instanceId) {
 ```javascript
 // Static instance 0
 getVncUrl(6080, '', 0)
-// → "https://instance0.grid.sweet6.net/vnc.html?path=/websockify&autoconnect=true&resize=scale"
+// → "https://instance0.grid.s6securitylabs.com/vnc.html?path=/websockify&autoconnect=true&resize=scale"
 
 // Named project
 getVncUrl(6080, 'Testing Project', 1)
-// → "https://testing-project.grid.sweet6.net/vnc.html?path=/websockify&autoconnect=true&resize=scale"
+// → "https://testing-project.grid.s6securitylabs.com/vnc.html?path=/websockify&autoconnect=true&resize=scale"
 ```
 
 ## Benefits vs Path-based Routing
 
 ### ✅ **Cleaner URLs**
 ```
-Before: https://grid.sweet6.net/websockify/0/websockify
-After:  https://instance0.grid.sweet6.net/websockify
+Before: https://grid.s6securitylabs.com/websockify/0/websockify
+After:  https://instance0.grid.s6securitylabs.com/websockify
 ```
 
 ### ✅ **Better SSL Coverage**
@@ -207,7 +207,7 @@ After:  https://instance0.grid.sweet6.net/websockify
 ### ✅ **Easier Firewall Rules**
 ```bash
 # Allow specific projects only
-iptables -A INPUT -p tcp --dport 443 -m string --string "testing.grid.sweet6.net" --algo bm -j ACCEPT
+iptables -A INPUT -p tcp --dport 443 -m string --string "testing.grid.s6securitylabs.com" --algo bm -j ACCEPT
 ```
 
 ### ✅ **Better Isolation**
@@ -216,7 +216,7 @@ iptables -A INPUT -p tcp --dport 443 -m string --string "testing.grid.sweet6.net
 - Easier to track in logs
 
 ### ✅ **Project Name Flexibility**
-- Use meaningful names: `testing.grid.sweet6.net`, `staging.grid.sweet6.net`
+- Use meaningful names: `testing.grid.s6securitylabs.com`, `staging.grid.s6securitylabs.com`
 - No URL encoding issues with project names
 
 ### ✅ **WebSocket Host Header**
@@ -234,8 +234,8 @@ https://s6-chromium-grid.lan.sweet6.net/websockify/1/websockify  → Instance 1
 
 ### New URLs (v2.2.4+)
 ```
-https://instance0.grid.sweet6.net/websockify  → Instance 0
-https://instance1.grid.sweet6.net/websockify  → Instance 1
+https://instance0.grid.s6securitylabs.com/websockify  → Instance 0
+https://instance1.grid.s6securitylabs.com/websockify  → Instance 1
 ```
 
 ### Dashboard Automatically Updates
@@ -247,7 +247,7 @@ The dashboard will generate new subdomain URLs automatically. No client changes 
 ### 1. Configure DNS
 ```bash
 # Add wildcard DNS record
-*.grid.sweet6.net    A    10.10.1.133
+*.grid.s6securitylabs.com    A    10.10.1.133
 ```
 
 ### 2. Deploy Updated Containers
@@ -260,29 +260,29 @@ docker compose -f docker-compose.production.yml up -d
 
 ### 3. Verify DNS
 ```bash
-dig instance0.grid.sweet6.net
+dig instance0.grid.s6securitylabs.com
 # Should return 10.10.1.133
 ```
 
 ### 4. Test VNC Access
 ```bash
 # Access dashboard
-https://grid.sweet6.net
+https://grid.s6securitylabs.com
 
 # Click "View" on Instance 1
-# Should open: https://instance0.grid.sweet6.net/vnc.html
+# Should open: https://instance0.grid.s6securitylabs.com/vnc.html
 ```
 
 ## Troubleshooting
 
 ### DNS Not Resolving
 
-**Symptom:** `instance0.grid.sweet6.net` doesn't resolve
+**Symptom:** `instance0.grid.s6securitylabs.com` doesn't resolve
 
 **Solution:**
 ```bash
 # Check DNS server
-dig @10.10.1.1 instance0.grid.sweet6.net
+dig @10.10.1.1 instance0.grid.s6securitylabs.com
 
 # Check /etc/resolv.conf
 cat /etc/resolv.conf
@@ -301,7 +301,7 @@ sudo systemd-resolve --flush-caches
 openssl x509 -in /etc/nginx/ssl/cert.pem -noout -text | grep DNS
 
 # Should show:
-# DNS:*.grid.sweet6.net, DNS:instance0.grid.sweet6.net, ...
+# DNS:*.grid.s6securitylabs.com, DNS:instance0.grid.s6securitylabs.com, ...
 ```
 
 ### VNC Not Connecting
@@ -370,7 +370,7 @@ Logs include extracted subdomain:
 
 ```
 10.10.1.50 - - [10/Jan/2026:10:00:00 +1030] "GET /websockify HTTP/1.1"
-200 1234 "https://grid.sweet6.net/" "Mozilla/5.0" host="instance0.grid.sweet6.net" subdomain="instance0"
+200 1234 "https://grid.s6securitylabs.com/" "Mozilla/5.0" host="instance0.grid.s6securitylabs.com" subdomain="instance0"
 ```
 
 ### grep for Specific Instance
@@ -383,7 +383,7 @@ docker exec s6-nginx grep 'subdomain="instance0"' /var/log/nginx/access.log
 
 - [ ] Add per-subdomain rate limiting
 - [ ] Implement subdomain-based authentication
-- [ ] Support project aliases (e.g., `prod.grid.sweet6.net` → `production.grid.sweet6.net`)
+- [ ] Support project aliases (e.g., `prod.grid.s6securitylabs.com` → `production.grid.s6securitylabs.com`)
 - [ ] Add subdomain health checks
 - [ ] Implement subdomain-based metrics
 

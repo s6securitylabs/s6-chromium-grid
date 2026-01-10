@@ -6,8 +6,8 @@ function getVncUrl(wsPort) {
     const instanceId = wsPort - 6080;
 
     // Build subdomain URL
-    // Example: instance0.grid.sweet6.net, instance1.grid.sweet6.net, etc.
-    const instanceSubdomain = `instance${instanceId}.grid.sweet6.net`;
+    // Example: instance0.grid.s6securitylabs.com, instance1.grid.s6securitylabs.com, etc.
+    const instanceSubdomain = `instance${instanceId}.grid.s6securitylabs.com`;
 
     // Use current protocol (http/https)
     const protocol = window.location.protocol;
@@ -16,14 +16,14 @@ function getVncUrl(wsPort) {
     const wsPath = '/websockify';
 
     // noVNC URL pointing to instance subdomain
-    // noVNC will connect to wss://instanceX.grid.sweet6.net/websockify
+    // noVNC will connect to wss://instanceX.grid.s6securitylabs.com/websockify
     return `${protocol}//${instanceSubdomain}/vnc.html?path=${encodeURIComponent(wsPath)}&autoconnect=true&resize=scale`;
 }
 
 // Alternative: If you want to use the same base domain with query param
 function getVncUrlQueryBased(wsPort) {
     const instanceId = wsPort - 6080;
-    const instanceSubdomain = `instance${instanceId}.grid.sweet6.net`;
+    const instanceSubdomain = `instance${instanceId}.grid.s6securitylabs.com`;
     const protocol = window.location.protocol;
 
     // Direct URL to instance subdomain noVNC viewer
@@ -33,6 +33,6 @@ function getVncUrlQueryBased(wsPort) {
 // For CDP endpoint URLs (if needed)
 function getCDPEndpoint(instanceId, cdpPort) {
     // CDP can also use subdomains if desired
-    // Example: instance0.grid.sweet6.net:9222
-    return `instance${instanceId}.grid.sweet6.net:${cdpPort}`;
+    // Example: instance0.grid.s6securitylabs.com:9222
+    return `instance${instanceId}.grid.s6securitylabs.com:${cdpPort}`;
 }

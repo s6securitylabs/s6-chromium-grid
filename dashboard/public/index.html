@@ -908,7 +908,7 @@ Please describe the automation task you want to perform.`;
             const instId = instanceId || (wsPort - 6080);
 
             // Base domain for subdomains
-            const baseDomain = 'grid.sweet6.net';
+            const baseDomain = 'grid.s6securitylabs.com';
 
             // Determine subdomain based on custom name or instance number
             let subdomain;
@@ -925,7 +925,7 @@ Please describe the automation task you want to perform.`;
             const instanceUrl = `${protocol}//${subdomain}.${baseDomain}`;
 
             // noVNC URL with WebSocket path (relative to subdomain)
-            // WebSocket will connect to wss://subdomain.grid.sweet6.net/websockify
+            // WebSocket will connect to wss://subdomain.grid.s6securitylabs.com/websockify
             return `${instanceUrl}/vnc.html?path=/websockify&autoconnect=true&resize=scale`;
         }
 

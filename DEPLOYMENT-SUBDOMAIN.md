@@ -9,14 +9,14 @@
 Add wildcard DNS record to your DNS server:
 
 ```
-*.grid.sweet6.net    A    10.10.1.133
-grid.sweet6.net      A    10.10.1.133
+*.grid.s6securitylabs.com    A    10.10.1.133
+grid.s6securitylabs.com      A    10.10.1.133
 ```
 
 **Test after adding:**
 ```bash
-dig instance0.grid.sweet6.net
-dig testing.grid.sweet6.net
+dig instance0.grid.s6securitylabs.com
+dig testing.grid.s6securitylabs.com
 # Both should return 10.10.1.133
 ```
 
@@ -65,13 +65,13 @@ docker ps
 ### Check NGINX logs
 ```bash
 docker logs s6-nginx | grep "Wildcard"
-# Should show: "✓ Wildcard certificate generated for *.grid.sweet6.net!"
+# Should show: "✓ Wildcard certificate generated for *.grid.s6securitylabs.com!"
 ```
 
 ### Check certificate SANs
 ```bash
 docker exec s6-nginx openssl x509 -in /etc/nginx/ssl/cert.pem -noout -text | grep "DNS:"
-# Should show: DNS:*.grid.sweet6.net, DNS:instance0.grid.sweet6.net, etc.
+# Should show: DNS:*.grid.s6securitylabs.com, DNS:instance0.grid.s6securitylabs.com, etc.
 ```
 
 ---
@@ -80,21 +80,21 @@ docker exec s6-nginx openssl x509 -in /etc/nginx/ssl/cert.pem -noout -text | gre
 
 ### Access main dashboard
 ```
-https://grid.sweet6.net
+https://grid.s6securitylabs.com
 ```
 
 ### Click "View" on Instance 1
 
 Should open a new window with URL:
 ```
-https://instance0.grid.sweet6.net/vnc.html?path=/websockify&autoconnect=true&resize=scale
+https://instance0.grid.s6securitylabs.com/vnc.html?path=/websockify&autoconnect=true&resize=scale
 ```
 
 ### Verify WebSocket connection
 
 Open browser console (F12) and check for:
 - ✅ No doubled URL errors
-- ✅ WebSocket connects to `wss://instance0.grid.sweet6.net/websockify`
+- ✅ WebSocket connects to `wss://instance0.grid.s6securitylabs.com/websockify`
 - ✅ noVNC shows live browser screen
 
 ---
@@ -108,7 +108,7 @@ https://s6-chromium-grid.lan.sweet6.net/websockify/0/websockify
 
 ### New (Subdomain-based)
 ```
-https://instance0.grid.sweet6.net/websockify
+https://instance0.grid.s6securitylabs.com/websockify
 ```
 
 ### Benefits
@@ -126,11 +126,11 @@ https://instance0.grid.sweet6.net/websockify
 
 **Test:**
 ```bash
-dig instance0.grid.sweet6.net
+dig instance0.grid.s6securitylabs.com
 ```
 
 **Fix:**
-- Check wildcard DNS record is correct: `*.grid.sweet6.net`
+- Check wildcard DNS record is correct: `*.grid.s6securitylabs.com`
 - Flush DNS cache: `sudo systemd-resolve --flush-caches`
 - Check your device is using correct DNS server
 
@@ -139,7 +139,7 @@ dig instance0.grid.sweet6.net
 **Test:**
 ```bash
 docker exec s6-nginx openssl x509 -in /etc/nginx/ssl/cert.pem -noout -text | grep "Subject:"
-# Should show: CN = *.grid.sweet6.net
+# Should show: CN = *.grid.s6securitylabs.com
 ```
 
 **Fix:**
